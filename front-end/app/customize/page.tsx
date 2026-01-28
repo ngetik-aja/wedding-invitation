@@ -1,35 +1,33 @@
 "use client";
 
-import { useRef } from "react"
-
-import { useState, useEffect } from "react";
+import {
+  Calendar,
+  ChevronLeft,
+  CreditCard,
+  ExternalLink,
+  Eye,
+  Heart,
+  ImageIcon,
+  MapPin,
+  Monitor,
+  Music,
+  Palette,
+  Smartphone,
+  Users,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { CustomizeHeader } from "@/components/customize/customize-header";
 import { CoupleForm } from "@/components/customize/forms/couple-form";
 import { EventForm } from "@/components/customize/forms/event-form";
-import { LocationForm } from "@/components/customize/forms/location-form";
 import { GalleryForm } from "@/components/customize/forms/gallery-form";
-import { StoryForm } from "@/components/customize/forms/story-form";
 import { GiftForm } from "@/components/customize/forms/gift-form";
-import { ThemeForm } from "@/components/customize/forms/theme-form";
+import { LocationForm } from "@/components/customize/forms/location-form";
 import { MusicForm } from "@/components/customize/forms/music-form";
+import { StoryForm } from "@/components/customize/forms/story-form";
+import { ThemeForm } from "@/components/customize/forms/theme-form";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { type WeddingData, themes, type ThemeKey } from "@/lib/wedding-context";
-import {
-  Users,
-  Calendar,
-  MapPin,
-  ImageIcon,
-  Heart,
-  CreditCard,
-  Palette,
-  Music,
-  Eye,
-  Smartphone,
-  Monitor,
-  ExternalLink,
-  ChevronLeft,
-} from "lucide-react";
+import { type ThemeKey, themes, type WeddingData } from "@/lib/wedding-context";
 
 const sections = [
   { id: "couple", label: "Data Pengantin", icon: Users },
@@ -88,7 +86,7 @@ const defaultData: WeddingData = {
   },
   music: {
     enabled: true,
-    selectedMusic: "romantic-1",
+    selectedMusic: "mixkit-wedding-01",
     customMusicUrl: "",
   },
 };
@@ -308,7 +306,7 @@ export default function CustomizePage() {
             </div>
 
             {/* Preview Panel - Desktop */}
-            <div className="hidden lg:block flex-1 border-l border-border bg-muted/30 min-h-[calc(100vh-65px)] sticky top-[65px]">
+            <div className="hidden lg:block flex-1 border-l border-border bg-muted/30 h-dvh sticky top-[65px]">
               {/* Preview Header */}
               <div className="flex items-center justify-between p-4 border-b border-border bg-card">
                 <div className="flex items-center gap-2">
@@ -357,7 +355,7 @@ export default function CustomizePage() {
               </div>
 
               {/* Preview Content */}
-              <div className="p-6 flex items-start justify-center h-[calc(100vh-130px)] overflow-auto">
+              <div className="px-6 flex items-start justify-center h-dvh overflow-auto">
                 <div
                   className={cn(
                     "bg-background rounded-2xl shadow-lg overflow-hidden transition-all duration-300",

@@ -214,7 +214,7 @@ const defaultData: WeddingData = {
   },
   music: {
     enabled: true,
-    selectedMusic: "romantic-1",
+    selectedMusic: "mixkit-wedding-01",
     customMusicUrl: "",
   },
 };

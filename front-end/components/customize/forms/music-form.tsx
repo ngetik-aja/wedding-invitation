@@ -1,12 +1,14 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { Music, Volume2, VolumeX } from "lucide-react";
+import { Music, Pause, Play, Volume2, VolumeX } from "lucide-react";
 
 interface MusicFormProps {
   data: {
@@ -18,16 +20,98 @@ interface MusicFormProps {
 }
 
 const musicOptions = [
-  { id: "romantic-1", name: "A Thousand Years", artist: "Christina Perri" },
-  { id: "romantic-2", name: "Perfect", artist: "Ed Sheeran" },
-  { id: "romantic-3", name: "All of Me", artist: "John Legend" },
-  { id: "romantic-4", name: "Marry You", artist: "Bruno Mars" },
-  { id: "romantic-5", name: "Can't Help Falling in Love", artist: "Elvis Presley" },
-  { id: "romantic-6", name: "I Don't Want to Miss a Thing", artist: "Aerosmith" },
+  {
+    id: "mixkit-wedding-01",
+    name: "Wedding 01",
+    artist: "Francisco Alvear (Mixkit)",
+    src: "/music/wedding-01.mp3",
+  },
+  {
+    id: "mixkit-wedding-harp",
+    name: "Wedding Harp",
+    artist: "Francisco Alvear (Mixkit)",
+    src: "/music/wedding-harp.mp3",
+  },
+  {
+    id: "mixkit-wedding-02",
+    name: "Wedding 02",
+    artist: "Francisco Alvear (Mixkit)",
+    src: "/music/wedding-02.mp3",
+  },
+  {
+    id: "mixkit-wedding-music",
+    name: "Wedding Music",
+    artist: "Arulo (Mixkit)",
+    src: "/music/wedding-music.mp3",
+  },
+  {
+    id: "mixkit-wedding-song-03",
+    name: "Wedding Song 03",
+    artist: "Arulo (Mixkit)",
+    src: "/music/wedding-song-03.mp3",
+  },
+  {
+    id: "mixkit-wedding-03",
+    name: "Wedding 03",
+    artist: "Francisco Alvear (Mixkit)",
+    src: "/music/wedding-03.mp3",
+  },
   { id: "custom", name: "Musik Custom", artist: "Upload sendiri" },
 ];
 
+type MusicOption = (typeof musicOptions)[number];
+
 export function MusicForm({ data, onChange }: MusicFormProps) {
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (!data.enabled && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setPlayingId(null);
+    }
+  }, [data.enabled]);
+
+  useEffect(() => {
+    if (data.selectedMusic === "custom" && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setPlayingId(null);
+    }
+  }, [data.selectedMusic]);
+
+  const handleTogglePreview = async (music: MusicOption) => {
+    if (!music.src || !audioRef.current) return;
+
+    const audio = audioRef.current;
+    if (playingId === music.id && !audio.paused) {
+      audio.pause();
+      setPlayingId(null);
+      return;
+    }
+
+    if (playingId && playingId !== music.id) {
+      audio.pause();
+    }
+
+    if (playingId !== music.id) {
+      audio.src = music.src;
+      audio.currentTime = 0;
+    }
+
+    try {
+      await audio.play();
+      setPlayingId(music.id);
+    } catch {
+      // ignore play interruption
+    }
+  };
+
+  const handleAudioEnded = () => {
+    setPlayingId(null);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -68,7 +152,7 @@ export function MusicForm({ data, onChange }: MusicFormProps) {
           <CardHeader>
             <CardTitle>Pilih Musik</CardTitle>
             <CardDescription>
-              Pilih dari koleksi musik romantis kami atau upload musik sendiri
+              Pilih dari koleksi musik gratis untuk komersial (Mixkit) atau upload musik sendiri
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -98,10 +182,33 @@ export function MusicForm({ data, onChange }: MusicFormProps) {
                       <p className="font-medium text-foreground">{music.name}</p>
                       <p className="text-sm text-muted-foreground">{music.artist}</p>
                     </div>
+                    {music.src && (
+                      <button
+                        type="button"
+                        aria-label={`Preview ${music.name}`}
+                        className={cn(
+                          "ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors",
+                          "hover:border-primary/60 hover:text-primary"
+                        )}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleTogglePreview(music);
+                        }}
+                      >
+                        {playingId === music.id ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
                   </Label>
                 </div>
               ))}
             </RadioGroup>
+
+            <audio ref={audioRef} onEnded={handleAudioEnded} />
 
             {/* Custom Music URL */}
             {data.selectedMusic === "custom" && (

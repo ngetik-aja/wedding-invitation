@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HeroSection } from "@/components/wedding/hero-section";
-import { CoupleSection } from "@/components/wedding/couple-section";
 import { CountdownSection } from "@/components/wedding/countdown-section";
+import { CoupleSection } from "@/components/wedding/couple-section";
 import { EventSection } from "@/components/wedding/event-section";
+import { FooterSection } from "@/components/wedding/footer-section";
 import { GallerySection } from "@/components/wedding/gallery-section";
+import { GiftSection } from "@/components/wedding/gift-section";
+import { HeroSection } from "@/components/wedding/hero-section";
 import { RsvpSection } from "@/components/wedding/rsvp-section";
 import { WishesSection } from "@/components/wedding/wishes-section";
-import { GiftSection } from "@/components/wedding/gift-section";
-import { FooterSection } from "@/components/wedding/footer-section";
-import { type WeddingData, themes, type ThemeKey } from "@/lib/wedding-context";
+import { type ThemeKey, themes, type WeddingData } from "@/lib/wedding-context";
 
 const STORAGE_KEY = "wedding-invitation-data";
 
@@ -58,7 +58,7 @@ const defaultData: WeddingData = {
   },
   music: {
     enabled: true,
-    selectedMusic: "romantic-1",
+    selectedMusic: "mixkit-wedding-01",
     customMusicUrl: "",
   },
 };

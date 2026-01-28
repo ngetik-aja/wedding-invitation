@@ -1,0 +1,126 @@
+"use client";
+
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
+import { Music, Volume2, VolumeX } from "lucide-react";
+
+interface MusicFormProps {
+  data: {
+    enabled: boolean;
+    selectedMusic: string;
+    customMusicUrl: string;
+  };
+  onChange: (data: MusicFormProps["data"]) => void;
+}
+
+const musicOptions = [
+  { id: "romantic-1", name: "A Thousand Years", artist: "Christina Perri" },
+  { id: "romantic-2", name: "Perfect", artist: "Ed Sheeran" },
+  { id: "romantic-3", name: "All of Me", artist: "John Legend" },
+  { id: "romantic-4", name: "Marry You", artist: "Bruno Mars" },
+  { id: "romantic-5", name: "Can't Help Falling in Love", artist: "Elvis Presley" },
+  { id: "romantic-6", name: "I Don't Want to Miss a Thing", artist: "Aerosmith" },
+  { id: "custom", name: "Musik Custom", artist: "Upload sendiri" },
+];
+
+export function MusicForm({ data, onChange }: MusicFormProps) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-serif text-2xl font-bold text-foreground">Background Musik</h2>
+        <p className="text-muted-foreground mt-1">
+          Tambahkan musik latar untuk pengalaman undangan yang lebih berkesan.
+        </p>
+      </div>
+
+      {/* Enable Music */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Aktifkan Musik</CardTitle>
+              <CardDescription>
+                Musik akan diputar otomatis saat undangan dibuka
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {data.enabled ? (
+                <Volume2 className="w-5 h-5 text-primary" />
+              ) : (
+                <VolumeX className="w-5 h-5 text-muted-foreground" />
+              )}
+              <Switch
+                checked={data.enabled}
+                onCheckedChange={(checked) => onChange({ ...data, enabled: checked })}
+              />
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Music Selection */}
+      {data.enabled && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pilih Musik</CardTitle>
+            <CardDescription>
+              Pilih dari koleksi musik romantis kami atau upload musik sendiri
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <RadioGroup
+              value={data.selectedMusic}
+              onValueChange={(value) => onChange({ ...data, selectedMusic: value })}
+              className="space-y-3"
+            >
+              {musicOptions.map((music) => (
+                <div key={music.id}>
+                  <RadioGroupItem
+                    value={music.id}
+                    id={music.id}
+                    className="peer sr-only"
+                  />
+                  <Label
+                    htmlFor={music.id}
+                    className={cn(
+                      "flex items-center gap-4 p-4 rounded-lg border border-border cursor-pointer transition-all hover:border-primary/50",
+                      "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
+                    )}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                      <Music className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">{music.name}</p>
+                      <p className="text-sm text-muted-foreground">{music.artist}</p>
+                    </div>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+
+            {/* Custom Music URL */}
+            {data.selectedMusic === "custom" && (
+              <div className="space-y-2 pt-4 border-t border-border">
+                <Label htmlFor="customMusicUrl">URL Musik (MP3)</Label>
+                <Input
+                  id="customMusicUrl"
+                  placeholder="https://example.com/music.mp3"
+                  value={data.customMusicUrl}
+                  onChange={(e) => onChange({ ...data, customMusicUrl: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Unggah file MP3 ke layanan hosting dan tempel URL-nya di sini.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

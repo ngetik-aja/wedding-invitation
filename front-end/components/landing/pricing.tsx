@@ -11,7 +11,7 @@ const plans = [
     features: [
       { name: "1 Template pilihan", included: true },
       { name: "Informasi acara", included: true },
-      { name: "Galeri foto (max 5)", included: true },
+      { name: "Galeri foto (max 4)", included: true },
       { name: "RSVP online", included: true },
       { name: "Countdown timer", included: true },
       { name: "Love story timeline", included: false },
@@ -29,7 +29,7 @@ const plans = [
     features: [
       { name: "Semua template premium", included: true },
       { name: "Informasi acara", included: true },
-      { name: "Galeri foto (max 20)", included: true },
+      { name: "Galeri foto (max 8)", included: true },
       { name: "RSVP online", included: true },
       { name: "Countdown timer", included: true },
       { name: "Love story timeline", included: true },
@@ -47,7 +47,7 @@ const plans = [
     features: [
       { name: "Semua template + exclusive", included: true },
       { name: "Informasi acara", included: true },
-      { name: "Galeri foto unlimited", included: true },
+      { name: "Galeri foto (max 12)", included: true },
       { name: "RSVP online + reminder", included: true },
       { name: "Countdown timer", included: true },
       { name: "Love story timeline", included: true },

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CountdownSection } from "@/components/wedding/countdown-section";
 import { CoupleSection } from "@/components/wedding/couple-section";
 import { EventSection } from "@/components/wedding/event-section";
@@ -108,6 +109,18 @@ const defaultGifts = [
   },
 ];
 
+function decodePreviewData(value: string | null) {
+  if (!value) return null;
+  try {
+    const decoded = decodeURIComponent(value);
+    const raw = atob(decoded);
+    const json = decodeURIComponent(escape(raw));
+    return JSON.parse(json) as WeddingData;
+  } catch {
+    return null;
+  }
+}
+
 function formatDate(dateStr: string): string {
   if (!dateStr) return "Saturday, March 15th, 2025";
   const date = new Date(dateStr);
@@ -121,7 +134,7 @@ function formatDate(dateStr: string): string {
 
 function formatTime(startTime: string, endTime: string): string {
   if (!startTime) return "10:00 AM - 11:30 AM";
-  
+
   const formatSingleTime = (time: string) => {
     const [hours, minutes] = time.split(":");
     const h = parseInt(hours, 10);
@@ -134,10 +147,18 @@ function formatTime(startTime: string, endTime: string): string {
 }
 
 export default function WeddingInvitation() {
+  const searchParams = useSearchParams();
+  const previewData = useMemo(() => decodePreviewData(searchParams.get("data")), [searchParams]);
   const [data, setData] = useState<WeddingData>(defaultData);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    if (previewData) {
+      setData({ ...defaultData, ...previewData });
+      setIsHydrated(true);
+      return;
+    }
+
     const loadData = () => {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -161,7 +182,7 @@ export default function WeddingInvitation() {
     };
 
     window.addEventListener("storage", handleStorage);
-    
+
     // Poll for changes (for iframe in same page)
     const interval = setInterval(loadData, 1000);
 
@@ -169,12 +190,12 @@ export default function WeddingInvitation() {
       window.removeEventListener("storage", handleStorage);
       clearInterval(interval);
     };
-  }, []);
+  }, [previewData]);
 
   // Apply theme
   useEffect(() => {
     if (!isHydrated) return;
-    
+
     const themeKey = data.theme.theme as ThemeKey;
     const theme = themes[themeKey] || themes.elegant;
     const root = document.documentElement;

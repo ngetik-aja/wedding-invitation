@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/proxima-labs/wedding-invitation-back-end/internal/http/handlers/validation"
 	adminsvc "github.com/proxima-labs/wedding-invitation-back-end/internal/service/admin"
 )
 
@@ -15,8 +16,8 @@ type AuthHandler struct {
 }
 
 type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
 }
 
 type loginResponse struct {
@@ -25,8 +26,13 @@ type loginResponse struct {
 
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+	if err := c.ShouldBindJSON(&req); err != nil {
+		validation.WriteValidationError(c, req, err)
+		return
+	}
+
+	if err := validation.ValidateStruct(req); err != nil {
+		validation.WriteValidationError(c, req, err)
 		return
 	}
 

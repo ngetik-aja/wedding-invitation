@@ -5,14 +5,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	publicmw "github.com/proxima-labs/wedding-invitation-back-end/internal/http/middleware/public"
-	globalsvc "github.com/proxima-labs/wedding-invitation-back-end/internal/service/global"
+	customersvc "github.com/proxima-labs/wedding-invitation-back-end/internal/service/customer"
 )
 
 type InvitationHandler struct {
-	Service *globalsvc.InvitationService
+	Service *customersvc.InvitationService
 }
 
-func (h *InvitationHandler) GetPublicInvitation(c *gin.Context) {
+func (h *InvitationHandler) GetInvitation(c *gin.Context) {
 	customer, ok := publicmw.GetCustomer(c)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "customer missing"})

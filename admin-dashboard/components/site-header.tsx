@@ -2,17 +2,15 @@
 
 import { usePathname } from "next/navigation"
 
-import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
 const titleMap: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/invitations": "Invitations",
-  "/payments": "Payments",
-  "/customers": "Customers",
-  "/analytics": "Analytics",
-  "/settings": "Settings",
+  "/invitations": "Undangan",
+  "/payments": "Pembayaran",
+  "/customers": "Pelanggan",
+  "/analytics": "Analitik",
 }
 
 export function SiteHeader() {
@@ -28,11 +26,6 @@ export function SiteHeader() {
           className="mx-2 data-[orientation=vertical]:h-4"
         />
         <h1 className="text-base font-medium">{title}</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            Export
-          </Button>
-        </div>
       </div>
     </header>
   )

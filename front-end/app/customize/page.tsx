@@ -266,15 +266,15 @@ export default function CustomizePage() {
         {/* Main Content */}
         <main className="flex-1">
           {/* Mobile Section Tabs */}
-          <div className="lg:hidden sticky top-[65px] z-10 bg-card border-b border-border overflow-x-auto">
-            <div className="flex p-2 gap-2 min-w-max">
+          <div className="lg:hidden sticky top-0 z-10 bg-card border-b border-border overflow-hidden">
+            <div className="flex w-max gap-2 px-4 py-2 overflow-x-auto overscroll-x-contain">
               {sections.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveSection(tab.id)}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap",
+                    "flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap",
                     activeSection === tab.id
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-secondary"
@@ -289,7 +289,7 @@ export default function CustomizePage() {
 
           <div className="lg:flex">
             {/* Form Area */}
-            <div className="flex-1 lg:max-w-2xl p-6">
+            <div className="flex-1 lg:max-w-2xl p-4 sm:p-6">
               {renderForm()}
 
               {/* Mobile Preview Button */}

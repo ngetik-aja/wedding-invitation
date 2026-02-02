@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	globalsvc "github.com/proxima-labs/wedding-invitation-back-end/internal/service/global"
+	customersvc "github.com/proxima-labs/wedding-invitation-back-end/internal/service/customer"
 )
 
 type Customer struct {
@@ -12,7 +12,7 @@ type Customer struct {
 	Email string
 }
 
-func CustomerMiddleware(customerService *globalsvc.CustomerService, baseDomain string) gin.HandlerFunc {
+func CustomerMiddleware(customerService *customersvc.CustomerService, baseDomain string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		customer, ok, err := customerService.ResolveByHost(c.Request.Context(), c.Request.Host, baseDomain)
 		if err != nil {

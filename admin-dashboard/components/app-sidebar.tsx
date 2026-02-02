@@ -4,16 +4,13 @@ import * as React from "react"
 import {
   IconChartBar,
   IconDashboard,
-  IconHelp,
+  IconHeartHandshake,
   IconInnerShadowTop,
   IconReceipt,
-  IconSettings,
   IconUsers,
-  IconHeartHandshake,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -24,55 +21,65 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { useAdminMe } from "@/hooks/queries/use-admin-me"
+import { useAuthStatus } from "@/hooks/queries/use-auth-status"
 
-const data = {
-  user: {
-    name: "Admin",
-    email: "admin@wedding-invitation.id",
-    avatar: "/avatars/shadcn.jpg",
+const fallbackUser = {
+  name: "Admin",
+  email: "admin@wedding-invitation.id",
+  avatar: "/avatars/shadcn.jpg",
+}
+
+const navMain = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: IconDashboard,
   },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
-    },
-    {
-      title: "Invitations",
-      url: "/invitations",
-      icon: IconHeartHandshake,
-    },
-    {
-      title: "Payments",
-      url: "/payments",
-      icon: IconReceipt,
-    },
-    {
-      title: "Customers",
-      url: "/customers",
-      icon: IconUsers,
-    },
-    {
-      title: "Analytics",
-      url: "/analytics",
-      icon: IconChartBar,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: IconSettings,
-    },
-    {
-      title: "Get Help",
-      url: "/support",
-      icon: IconHelp,
-    },
-  ],
+  {
+    title: "Undangan",
+    url: "/invitations",
+    icon: IconHeartHandshake,
+  },
+  {
+    title: "Pembayaran",
+    url: "/payments",
+    icon: IconReceipt,
+  },
+  {
+    title: "Pelanggan",
+    url: "/customers",
+    icon: IconUsers,
+  },
+  {
+    title: "Analitik",
+    url: "/analytics",
+    icon: IconChartBar,
+  },
+]
+
+const formatNameFromEmail = (value: string) => {
+  const prefix = value.split("@")[0] || "Admin"
+  const cleaned = prefix.replace(/[._-]+/g, " ").trim()
+  if (!cleaned) return "Admin"
+  return cleaned
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { data: isAuthed } = useAuthStatus()
+  const { data } = useAdminMe(Boolean(isAuthed))
+
+  const user = isAuthed && data
+    ? {
+        name: formatNameFromEmail(data.email),
+        email: data.email,
+        avatar: fallbackUser.avatar,
+      }
+    : fallbackUser
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -84,18 +91,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="/dashboard">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Wedding Invitation</span>
+                <span className="text-base font-semibold">Undangan Pernikahan</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={navMain} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   )

@@ -13,6 +13,13 @@ export const api = axios.create({
 let isRefreshing = false
 let refreshPromise: Promise<string | null> | null = null
 
+const isAuthEndpoint = (url?: string) => {
+  if (!url) return false
+  return url.includes("/api/v1/admin/auth/login") ||
+    url.includes("/api/v1/admin/auth/refresh") ||
+    url.includes("/api/v1/admin/auth/logout")
+}
+
 async function refreshAccessToken() {
   if (isRefreshing && refreshPromise) {
     return refreshPromise
@@ -64,6 +71,10 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
+      if (isAuthEndpoint(original.url)) {
+        return Promise.reject(error)
+      }
+
       original._retry = true
       const token = await refreshAccessToken()
       if (token) {

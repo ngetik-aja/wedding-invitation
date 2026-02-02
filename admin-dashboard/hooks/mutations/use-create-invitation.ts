@@ -4,7 +4,7 @@ import { api } from "@/lib/api"
 
 export type InvitationPayload = {
   customerId: string
-  slug: string
+  slug?: string
   title?: string
   searchName?: string
   eventDate?: string
@@ -20,7 +20,7 @@ export function useCreateInvitation() {
     mutationFn: async (payload: InvitationPayload) => {
       const res = await api.post("/api/v1/admin/invitations", {
         customer_id: payload.customerId,
-        slug: payload.slug,
+        slug: payload.slug ?? "",
         title: payload.title,
         search_name: payload.searchName,
         event_date: payload.eventDate,

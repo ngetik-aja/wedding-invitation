@@ -1,169 +1,443 @@
-"use client"
+"use client";
 
-import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { Controller, FormProvider, useForm, useWatch } from "react-hook-form";
+import Select from "react-select";
+import { CustomizeHeader } from "@/components/customize/customize-header";
+import { CoupleForm } from "@/components/customize/forms/couple-form";
+import { EventForm } from "@/components/customize/forms/event-form";
+import { GalleryForm } from "@/components/customize/forms/gallery-form";
+import { GiftForm } from "@/components/customize/forms/gift-form";
+import { LocationForm } from "@/components/customize/forms/location-form";
+import { MusicForm } from "@/components/customize/forms/music-form";
+import { StoryForm } from "@/components/customize/forms/story-form";
+import { ThemeForm } from "@/components/customize/forms/theme-form";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useCreateInvitation } from "@/hooks/mutations/use-create-invitation";
+import { useRegisterCustomer } from "@/hooks/mutations/use-register-customer";
+import { useCustomers } from "@/hooks/queries/use-customers";
+import {
+	type CustomerFormValues,
+	customerFormSchema,
+} from "@/lib/customer-form-schema";
+import { cn } from "@/lib/utils";
+import { defaultWeddingData, type ThemeKey, themes } from "@/lib/wedding-data";
+import {
+	type WeddingFormValues,
+	weddingFormSchema,
+} from "@/lib/wedding-form-schema";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { useCreateInvitation } from "@/hooks/mutations/use-create-invitation"
+const sections = [
+	{ id: "couple", label: "Data Pengantin" },
+	{ id: "event", label: "Acara" },
+	{ id: "location", label: "Lokasi" },
+	{ id: "gallery", label: "Galeri Foto" },
+	{ id: "story", label: "Kisah Cinta" },
+	{ id: "gift", label: "Amplop Digital" },
+	{ id: "theme", label: "Tema & Warna" },
+	{ id: "music", label: "Musik" },
+];
 
-function encodePreview(data: string) {
-  return encodeURIComponent(btoa(unescape(encodeURIComponent(data))))
+function encodePreview(data: Record<string, unknown>) {
+	const raw = JSON.stringify(data);
+	return encodeURIComponent(btoa(unescape(encodeURIComponent(raw))));
 }
 
 export default function NewInvitationPage() {
-  const router = useRouter()
-  const { mutate, isPending } = useCreateInvitation()
+	const router = useRouter();
+	const { data: customerData } = useCustomers();
+	const registerCustomer = useRegisterCustomer();
+	const createInvitation = useCreateInvitation();
 
-  const [customerId, setTenantId] = useState("")
-  const [slug, setSlug] = useState("")
-  const [title, setTitle] = useState("")
-  const [eventDate, setEventDate] = useState("")
-  const [themeKey, setThemeKey] = useState("elegant")
-  const [isPublished, setIsPublished] = useState(false)
-  const [content, setContent] = useState("{}")
-  const [error, setError] = useState<string | null>(null)
+	const [activeSection, setActiveSection] = useState("couple");
+	const [error, setError] = useState<string | null>(null);
 
-  const previewUrl = useMemo(() => {
-    try {
-      JSON.parse(content)
-      const base = process.env.NEXT_PUBLIC_PREVIEW_URL || "http://localhost:3000/preview"
-      return `${base}?data=${encodePreview(content)}`
-    } catch {
-      return null
-    }
-  }, [content])
+	const weddingForm = useForm<WeddingFormValues>({
+		resolver: zodResolver(weddingFormSchema),
+		defaultValues: { ...defaultWeddingData, isPublished: false },
+		mode: "onBlur",
+	});
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setError(null)
+	const customerForm = useForm<CustomerFormValues>({
+		resolver: zodResolver(customerFormSchema),
+		defaultValues: {
+			mode: "new",
+			fullName: "",
+			email: "",
+			password: "",
+			selectedCustomerId: undefined,
+		},
+		mode: "onBlur",
+	});
 
-    let parsed: Record<string, unknown>
-    try {
-      parsed = JSON.parse(content)
-    } catch {
-      setError("Content harus JSON valid.")
-      return
-    }
+	const weddingData = useWatch({ control: weddingForm.control });
+	const mode = customerForm.watch("mode");
 
-    mutate(
-      {
-        customerId,
-        slug,
-        title,
-        eventDate: eventDate || undefined,
-        themeKey,
-        isPublished,
-        content: parsed,
-      },
-      {
-        onSuccess: () => router.push("/invitations"),
-        onError: () => setError("Gagal menyimpan undangan."),
-      }
-    )
-  }
+	const isSubmitting = registerCustomer.isPending || createInvitation.isPending;
 
-  return (
-    <div className="flex flex-col gap-4 px-4 lg:px-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Buat Undangan</h1>
-        <p className="text-muted-foreground">Isi data inti undangan baru.</p>
+	const customerOptions = useMemo(() => {
+		return (customerData?.items ?? []).map((item) => ({
+			value: item.id,
+			label: `${item.full_name} (${item.email})`,
+		}));
+	}, [customerData]);
+
+	const previewUrl = useMemo(() => {
+		const base =
+			process.env.NEXT_PUBLIC_PREVIEW_URL || "http://localhost:3000/preview";
+		const previewData = { ...(weddingData as WeddingFormValues) };
+		delete (previewData as { isPublished?: boolean }).isPublished;
+		return `${base}?data=${encodePreview(previewData as unknown as Record<string, unknown>)}`;
+	}, [weddingData]);
+
+	const derivedTitle = useMemo(() => {
+		const groom = weddingData?.couple?.groomName?.trim() || "";
+		const bride = weddingData?.couple?.brideName?.trim() || "";
+		if (groom && bride) return `${groom} & ${bride}`;
+		return undefined;
+	}, [weddingData]);
+
+	const handleSave = async () => {
+		setError(null);
+
+		const customerValid = await customerForm.trigger();
+		const weddingValid = await weddingForm.trigger();
+		if (!customerValid || !weddingValid) {
+			setError("Periksa kembali data yang belum lengkap.");
+			return;
+		}
+
+		const customerValues = customerForm.getValues();
+		const weddingValues = weddingForm.getValues();
+		const content = { ...(weddingValues as WeddingFormValues) };
+		delete (content as { isPublished?: boolean }).isPublished;
+
+		if (customerValues.mode === "new") {
+			registerCustomer.mutate(
+				{
+					fullName: customerValues.fullName || "",
+					email: customerValues.email || "",
+					password: customerValues.password || "",
+					title: derivedTitle,
+					eventDate:
+						weddingValues.event.akadDate ||
+						weddingValues.event.resepsiDate ||
+						undefined,
+					themeKey: weddingValues.theme.theme,
+					content: content as unknown as Record<string, unknown>,
+				},
+				{
+					onSuccess: (data) => {
+						router.push(`/invitations/${data.invitation_id}`);
+					},
+					onError: () => setError("Gagal membuat undangan."),
+				},
+			);
+			return;
+		}
+
+		if (!customerValues.selectedCustomerId) {
+			setError("Pilih pelanggan terlebih dahulu.");
+			return;
+		}
+
+		createInvitation.mutate(
+			{
+				customerId: customerValues.selectedCustomerId,
+				title: derivedTitle,
+				eventDate:
+					weddingValues.event.akadDate ||
+					weddingValues.event.resepsiDate ||
+					undefined,
+				themeKey: weddingValues.theme.theme,
+				content: content as unknown as Record<string, unknown>,
+			},
+			{
+				onSuccess: (data) => {
+					const invitationId = data?.id;
+					if (invitationId) {
+						router.push(`/invitations/${invitationId}`);
+						return;
+					}
+					router.push("/invitations");
+				},
+				onError: () => setError("Gagal membuat undangan."),
+			},
+		);
+	};
+
+	const currentTheme =
+		themes[weddingData?.theme?.theme as ThemeKey] || themes.elegant;
+
+	const renderForm = () => {
+		switch (activeSection) {
+			case "couple":
+				return <CoupleForm />;
+			case "event":
+				return <EventForm />;
+			case "location":
+				return <LocationForm />;
+			case "gallery":
+				return <GalleryForm />;
+			case "story":
+				return <StoryForm />;
+			case "gift":
+				return <GiftForm />;
+			case "theme":
+				return <ThemeForm />;
+			case "music":
+				return <MusicForm />;
+			default:
+				return null;
+		}
+	};
+
+	return (
+		<FormProvider {...weddingForm}>
+			<div className="bg-background">
+				<CustomizeHeader
+					onSave={handleSave}
+					isSaving={isSubmitting}
+					title="Buat Undangan"
+					subtitle="Isi data undangan dengan mudah"
+				/>
+
+				<div className="flex">
+					<aside className="hidden lg:block w-64 bg-card border-r border-border min-h-[calc(100vh-65px)] sticky top-[65px]">
+						<div className="p-4 border-b border-border">
+							<h2 className="font-serif text-xl font-bold text-foreground">
+								Kustomisasi
+							</h2>
+							<p className="text-sm text-muted-foreground mt-1">
+								Langkah demi langkah isi data
+							</p>
+						</div>
+						<nav className="p-3">
+							<ul className="space-y-1">
+								{sections.map((section) => (
+									<li key={section.id}>
+										<button
+											type="button"
+											onClick={() => setActiveSection(section.id)}
+											className={cn(
+												"w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+												activeSection === section.id
+													? "bg-primary text-primary-foreground"
+													: "text-muted-foreground hover:text-foreground hover:bg-secondary",
+											)}
+										>
+											{section.label}
+										</button>
+									</li>
+								))}
+							</ul>
+						</nav>
+
+						<div className="p-4 border-t border-border mt-auto">
+							<div className="text-xs text-muted-foreground mb-1">
+								Tema Aktif
+							</div>
+							<div className="font-medium text-foreground">
+								{currentTheme.name}
+							</div>
+						</div>
+					</aside>
+
+					<main className="flex-1">
+						{/* Mobile Section Tabs */}
+						<div className="lg:hidden sticky top-0 z-10 bg-card border-b border-border">
+							<div className="flex max-w-xs gap-2 px-4 py-2 overflow-x-auto md:max-w-full">
+								{sections.map((section) => (
+									<button
+										key={section.id}
+										type="button"
+										onClick={() => setActiveSection(section.id)}
+										className={cn(
+											"flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap",
+											activeSection === section.id
+												? "bg-primary text-primary-foreground"
+												: "text-muted-foreground hover:bg-secondary",
+										)}
+									>
+										{section.label}
+									</button>
+								))}
+							</div>
+						</div>
+
+						<div className="lg:flex max-w-xs md:max-w-full">
+							<div className="flex-1 lg:max-w-2xl p-4 sm:p-6 space-y-6">
+								<Card>
+									<CardHeader>
+										<CardTitle>Data Pelanggan</CardTitle>
+										<CardDescription>
+											Isi data pelanggan dengan bahasa yang mudah dipahami.
+										</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-4">
+										<div className="flex flex-wrap gap-2">
+											<Button
+												type="button"
+												variant={mode == "new" ? "default" : "outline"}
+												onClick={() => customerForm.setValue("mode", "new")}
+											>
+												Pelanggan Baru
+											</Button>
+											<Button
+												type="button"
+												variant={mode == "existing" ? "default" : "outline"}
+												onClick={() =>
+													customerForm.setValue("mode", "existing")
+												}
+											>
+												Pelanggan Terdaftar
+											</Button>
+										</div>
+
+										{mode === "new" ? (
+											<div className="grid gap-4">
+												<div className="grid gap-2">
+													<Label htmlFor="fullName">Nama Lengkap</Label>
+													<Input
+														id="fullName"
+														placeholder="Nama lengkap pelanggan"
+														{...customerForm.register("fullName")}
+													/>
+													{customerForm.formState.errors.fullName && (
+														<p className="text-sm text-destructive">
+															{customerForm.formState.errors.fullName.message}
+														</p>
+													)}
+												</div>
+												<div className="grid gap-2">
+													<Label htmlFor="email">Email</Label>
+													<Input
+														id="email"
+														type="email"
+														placeholder="email@contoh.com"
+														{...customerForm.register("email")}
+													/>
+													{customerForm.formState.errors.email && (
+														<p className="text-sm text-destructive">
+															{customerForm.formState.errors.email.message}
+														</p>
+													)}
+												</div>
+												<div className="grid gap-2">
+													<Label htmlFor="password">Password</Label>
+													<Input
+														id="password"
+														type="password"
+														placeholder="Minimal 8 karakter"
+														{...customerForm.register("password")}
+													/>
+													{customerForm.formState.errors.password && (
+														<p className="text-sm text-destructive">
+															{customerForm.formState.errors.password.message}
+														</p>
+													)}
+												</div>
+											</div>
+										) : (
+											<div className="grid gap-2">
+												<Label>Pilih Pelanggan</Label>
+												<Controller
+													control={customerForm.control}
+													name="selectedCustomerId"
+													render={({ field }) => (
+														<Select
+															classNamePrefix="react-select"
+															placeholder="Cari nama pelanggan..."
+															options={customerOptions}
+															value={
+																customerOptions.find(
+																	(option) => option.value === field.value,
+																) || null
+															}
+															onChange={(option) =>
+																field.onChange(
+																	option ? option.value : undefined,
+																)
+															}
+														/>
+													)}
+												/>
+												{customerForm.formState.errors.selectedCustomerId && (
+													<p className="text-sm text-destructive">
+														{
+															customerForm.formState.errors.selectedCustomerId
+																.message
+														}
+													</p>
+												)}
+											</div>
+										)}
+									</CardContent>
+								</Card>
+
+								{renderForm()}
+
+								<div className="lg:hidden">
+									<Button variant="outline" className="w-full" asChild>
+										<a
+											href={previewUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											Buka Pratinjau
+										</a>
+									</Button>
+								</div>
+
+								{error && <p className="text-sm text-destructive">{error}</p>}
+
+								<div className="flex flex-wrap gap-3">
+									<Button onClick={handleSave} disabled={isSubmitting}>
+										Simpan
+									</Button>
+								</div>
+							</div>
+
+              <div className="hidden lg:flex flex-1 flex-col border-l border-border bg-muted/30 sticky top-0 h-screen">
+                <div className="flex items-center justify-between p-4 border-b border-border bg-card shrink-0">
+									<div className="font-medium text-foreground">Pratinjau</div>
+									<Button variant="outline" size="sm" asChild>
+										<a
+											href={previewUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											Buka Pratinjau
+										</a>
+									</Button>
+								</div>
+                <div className="flex-1 h-screen overflow-auto px-6">
+                  <div className="flex h-screen justify-center py-6">
+                    <div className="bg-background rounded-2xl shadow-lg overflow-hidden w-full max-w-[420px] h-screen">
+                      <iframe
+                        src={previewUrl}
+                        className="w-full h-full border-0"
+                        title="Pratinjau"
+                      />
+                    </div>
+                  </div>
+								</div>
+              </div>
+            </div>
+          </main>
+        </div>
       </div>
-
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Detail Undangan</CardTitle>
-            <CardDescription>Metadata + JSON content untuk layout.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="customerId">Customer ID</Label>
-                  <Input id="customerId" value={customerId} onChange={(e) => setTenantId(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="slug">Slug</Label>
-                  <Input id="slug" value={slug} onChange={(e) => setSlug(e.target.value)} required />
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="eventDate">Event Date</Label>
-                  <Input id="eventDate" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="themeKey">Theme Key</Label>
-                  <Input id="themeKey" value={themeKey} onChange={(e) => setThemeKey(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="isPublished">Published</Label>
-                  <select
-                    id="isPublished"
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={isPublished ? "yes" : "no"}
-                    onChange={(e) => setIsPublished(e.target.value === "yes")}
-                  >
-                    <option value="no">Draft</option>
-                    <option value="yes">Published</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="content">Content (JSON)</Label>
-                <Textarea
-                  id="content"
-                  rows={12}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                />
-              </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button type="submit" disabled={isPending}>
-                {isPending ? "Menyimpan..." : "Simpan Undangan"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Preview</CardTitle>
-            <CardDescription>Live preview dari JSON content.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {previewUrl ? (
-              <div className="space-y-3">
-                <Button asChild variant="outline">
-                  <a href={previewUrl} target="_blank" rel="noopener noreferrer">
-                    Buka Preview
-                  </a>
-                </Button>
-                <div className="aspect-[9/16] w-full overflow-hidden rounded-lg border">
-                  <iframe
-                    key={previewUrl}
-                    src={previewUrl}
-                    className="h-full w-full border-0"
-                    title="Preview"
-                  />
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">JSON belum valid.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
+    </FormProvider>
+  );
 }

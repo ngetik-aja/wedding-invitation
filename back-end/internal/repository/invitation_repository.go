@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/proxima-labs/wedding-invitation-back-end/internal/model"
 )
@@ -28,8 +29,18 @@ type InvitationCreateInput struct {
 type InvitationUpdateInput = InvitationCreateInput
 
 func (r *InvitationRepository) Create(ctx context.Context, input InvitationCreateInput) (string, error) {
+	return r.createWithQuerier(ctx, r.DB, input)
+}
+
+func (r *InvitationRepository) CreateTx(ctx context.Context, tx pgx.Tx, input InvitationCreateInput) (string, error) {
+	return r.createWithQuerier(ctx, tx, input)
+}
+
+func (r *InvitationRepository) createWithQuerier(ctx context.Context, querier interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, input InvitationCreateInput) (string, error) {
 	var id string
-	err := r.DB.QueryRow(ctx, `
+	err := querier.QueryRow(ctx, `
 		INSERT INTO invitations (
 			customer_id,
 			slug,
@@ -208,4 +219,19 @@ func (r *InvitationRepository) List(ctx context.Context, filters InvitationListF
 
 func itoa(value int) string {
 	return strconv.Itoa(value)
+}
+
+func (r *InvitationRepository) ExistsByCustomerAndSlug(ctx context.Context, customerID, slug string) (bool, error) {
+	var exists bool
+	row := r.DB.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM invitations
+			WHERE customer_id = $1 AND slug = $2
+		)
+	`, customerID, slug)
+	if err := row.Scan(&exists); err != nil {
+		return false, err
+	}
+	return exists, nil
 }

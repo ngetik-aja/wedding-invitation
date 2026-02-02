@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/proxima-labs/wedding-invitation-back-end/internal/http/handlers/validation"
 	"github.com/proxima-labs/wedding-invitation-back-end/internal/repository"
 	adminsvc "github.com/proxima-labs/wedding-invitation-back-end/internal/service/admin"
 )
@@ -16,14 +17,14 @@ type InvitationHandler struct {
 }
 
 type invitationPayload struct {
-	CustomerID  string          `json:"customer_id"`
+	CustomerID  string          `json:"customer_id" binding:"required"`
 	Slug        string          `json:"slug"`
 	Title       string          `json:"title"`
 	SearchName  string          `json:"search_name"`
 	EventDate   string          `json:"event_date"`
 	ThemeKey    string          `json:"theme_key"`
 	IsPublished bool            `json:"is_published"`
-	Content     json.RawMessage `json:"content"`
+	Content     json.RawMessage `json:"content" binding:"required"`
 }
 
 type invitationResponse struct {
@@ -144,11 +145,12 @@ func (h *InvitationHandler) ListInvitations(c *gin.Context) {
 func (h *InvitationHandler) CreateInvitation(c *gin.Context) {
 	var payload invitationPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		validation.WriteValidationError(c, payload, err)
 		return
 	}
-	if payload.CustomerID == "" || payload.Slug == "" || len(payload.Content) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing required fields"})
+
+	if err := validation.ValidateStruct(payload); err != nil {
+		validation.WriteValidationError(c, payload, err)
 		return
 	}
 
@@ -225,11 +227,12 @@ func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
 
 	var payload invitationPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		validation.WriteValidationError(c, payload, err)
 		return
 	}
-	if payload.CustomerID == "" || payload.Slug == "" || len(payload.Content) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing required fields"})
+
+	if err := validation.ValidateStruct(payload); err != nil {
+		validation.WriteValidationError(c, payload, err)
 		return
 	}
 

@@ -2,9 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 
 interface CoupleFormProps {
   data: {
@@ -25,6 +23,20 @@ interface CoupleFormProps {
 export function CoupleForm({ data, onChange }: CoupleFormProps) {
   const handleChange = (field: keyof CoupleFormProps["data"], value: string) => {
     onChange({ ...data, [field]: value });
+  };
+
+  const handlePhotoChange = (field: "groomPhoto" | "bridePhoto", file?: File | null) => {
+    if (!file) {
+      handleChange(field, "");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      handleChange(field, result);
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -84,16 +96,31 @@ export function CoupleForm({ data, onChange }: CoupleFormProps) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="groomPhoto">URL Foto</Label>
+            <Label htmlFor="groomPhoto">Foto Mempelai Pria</Label>
             <Input
               id="groomPhoto"
-              placeholder="https://example.com/photo.jpg"
-              value={data.groomPhoto}
-              onChange={(e) => handleChange("groomPhoto", e.target.value)}
+              type="file"
+              accept="image/*"
+              onChange={(e) => handlePhotoChange("groomPhoto", e.target.files?.[0])}
             />
-            <p className="text-xs text-muted-foreground">
-              Unggah foto ke layanan hosting gambar dan tempel URL-nya di sini.
-            </p>
+            {data.groomPhoto ? (
+              <div className="mt-3 flex items-center gap-4">
+                <img
+                  src={data.groomPhoto}
+                  alt="Preview mempelai pria"
+                  className="h-20 w-20 rounded-full object-cover border"
+                />
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => handleChange("groomPhoto", "")}
+                >
+                  Hapus foto
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Unggah foto langsung dari perangkat.</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -146,16 +173,31 @@ export function CoupleForm({ data, onChange }: CoupleFormProps) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="bridePhoto">URL Foto</Label>
+            <Label htmlFor="bridePhoto">Foto Mempelai Wanita</Label>
             <Input
               id="bridePhoto"
-              placeholder="https://example.com/photo.jpg"
-              value={data.bridePhoto}
-              onChange={(e) => handleChange("bridePhoto", e.target.value)}
+              type="file"
+              accept="image/*"
+              onChange={(e) => handlePhotoChange("bridePhoto", e.target.files?.[0])}
             />
-            <p className="text-xs text-muted-foreground">
-              Unggah foto ke layanan hosting gambar dan tempel URL-nya di sini.
-            </p>
+            {data.bridePhoto ? (
+              <div className="mt-3 flex items-center gap-4">
+                <img
+                  src={data.bridePhoto}
+                  alt="Preview mempelai wanita"
+                  className="h-20 w-20 rounded-full object-cover border"
+                />
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => handleChange("bridePhoto", "")}
+                >
+                  Hapus foto
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Unggah foto langsung dari perangkat.</p>
+            )}
           </div>
         </CardContent>
       </Card>

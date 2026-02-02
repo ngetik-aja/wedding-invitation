@@ -170,6 +170,33 @@ export const themes = {
 
 export type ThemeKey = keyof typeof themes;
 
+const accentPalette: Record<string, string> = {
+  brown: "#8B4513",
+  green: "#5D6B4A",
+  black: "#1A1A1A",
+  gold: "#B8860B",
+  teal: "#008080",
+  purple: "#9370DB",
+  navy: "#1E3A5F",
+  maroon: "#800000",
+  pink: "#DB7093",
+  sage: "#9CAF88",
+  rose: "#D67BA8",
+};
+
+function getContrastColor(hex: string) {
+  const value = hex.replace("#", "");
+  const r = int(value.slice(0, 2));
+  const g = int(value.slice(2, 4));
+  const b = int(value.slice(4, 6));
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 150 ? "#111111" : "#FFFFFF";
+}
+
+function int(value: string) {
+  return parseInt(value, 16);
+}
+
 const defaultData: WeddingData = {
   couple: {
     groomName: "Daniel",
@@ -265,8 +292,16 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
 
     root.style.setProperty("--background", theme.colors.background);
     root.style.setProperty("--foreground", theme.colors.foreground);
-    root.style.setProperty("--primary", theme.colors.primary);
-    root.style.setProperty("--primary-foreground", theme.colors.primaryForeground);
+    let primary = theme.colors.primary;
+    let primaryForeground = theme.colors.primaryForeground;
+    const accentOverride = accentPalette[data.theme.primaryColor as string];
+    if (accentOverride) {
+      primary = accentOverride;
+      primaryForeground = getContrastColor(accentOverride);
+    }
+
+    root.style.setProperty("--primary", primary);
+    root.style.setProperty("--primary-foreground", primaryForeground);
     root.style.setProperty("--secondary", theme.colors.secondary);
     root.style.setProperty("--secondary-foreground", theme.colors.secondaryForeground);
     root.style.setProperty("--muted", theme.colors.muted);
@@ -276,7 +311,7 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
     root.style.setProperty("--border", theme.colors.border);
     root.style.setProperty("--card", theme.colors.card);
     root.style.setProperty("--card-foreground", theme.colors.cardForeground);
-  }, [data.theme.theme, isHydrated]);
+  }, [data.theme.theme, data.theme.primaryColor, isHydrated]);
 
   const updateData = <K extends keyof WeddingData>(
     section: K,

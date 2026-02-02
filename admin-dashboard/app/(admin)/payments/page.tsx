@@ -36,6 +36,27 @@ const payments = [
   },
 ]
 
+const formatEventDate = (value: string) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  const parts = new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).formatToParts(date)
+
+  const byType = parts.reduce<Record<string, string>>((acc, part) => {
+    acc[part.type] = part.value
+    return acc
+  }, {})
+
+  if (!byType.weekday || !byType.day || !byType.month || !byType.year) return value
+
+  return `${byType.weekday}, ${byType.day} ${byType.month} ${byType.year}`
+}
+
 export default function PaymentsPage() {
   return (
     <div className="flex flex-col gap-4 px-4 lg:px-6">
@@ -105,7 +126,7 @@ export default function PaymentsPage() {
                       {payment.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">{payment.date}</TableCell>
+                  <TableCell className="text-right">{formatEventDate(payment.date)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

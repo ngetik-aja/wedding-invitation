@@ -1,17 +1,15 @@
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
-import { DataTable } from "@/components/data-table"
-import { SectionCards } from "@/components/section-cards"
-
-import data from "./data.json"
 
 export default function Page() {
   return (
-    <>
-      <SectionCards />
-      <div className="px-4 lg:px-6">
-        <ChartAreaInteractive />
+    <div className="flex flex-col gap-4 px-4 lg:px-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Ringkasan aktivitas undangan yang paling relevan.
+        </p>
       </div>
-      <DataTable data={data} />
-    </>
+      <ChartAreaInteractive />
+    </div>
   )
 }

@@ -11,7 +11,7 @@ interface CustomizeHeaderProps {
 
 export function CustomizeHeader({ onSave, isSaving }: CustomizeHeaderProps) {
   return (
-    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6">
+    <header className="border-b border-border bg-card flex flex-col gap-3 px-4 py-3 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/landing">
@@ -29,7 +29,7 @@ export function CustomizeHeader({ onSave, isSaving }: CustomizeHeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
         <Button variant="outline" size="sm">
           <Share2 className="w-4 h-4 mr-2" />
           Bagikan

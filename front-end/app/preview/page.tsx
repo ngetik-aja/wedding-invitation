@@ -10,6 +10,7 @@ import { GallerySection } from "@/components/wedding/gallery-section";
 import { GiftSection } from "@/components/wedding/gift-section";
 import { HeroSection } from "@/components/wedding/hero-section";
 import { RsvpSection } from "@/components/wedding/rsvp-section";
+import { StorySection } from "@/components/wedding/story-section";
 import { WishesSection } from "@/components/wedding/wishes-section";
 import { type ThemeKey, themes, type WeddingData } from "@/lib/wedding-context";
 
@@ -93,7 +94,58 @@ const defaultWishes = [
   },
 ];
 
+const defaultStories = [
+  {
+    title: "Pertama Bertemu",
+    date: "Januari 2020",
+    description: "Kami bertemu di sebuah acara teman dan langsung merasa cocok.",
+  },
+  {
+    title: "Lamaran",
+    date: "Juli 2023",
+    description: "Momen sederhana yang penuh makna saat janji sehidup semati diucapkan.",
+  },
+  {
+    title: "Hari Bahagia",
+    date: "Maret 2025",
+    description: "Kini kami siap memulai babak baru sebagai pasangan suami istri.",
+  },
+];
+
 // Default gifts
+
+const accentPalette: Record<string, string> = {
+  brown: "#8B4513",
+  green: "#5D6B4A",
+  black: "#1A1A1A",
+  gold: "#B8860B",
+  teal: "#008080",
+  purple: "#9370DB",
+  navy: "#1E3A5F",
+  maroon: "#800000",
+  pink: "#DB7093",
+  sage: "#9CAF88",
+  rose: "#D67BA8",
+};
+
+const musicOptions: Record<string, string> = {
+  "mixkit-wedding-01": "/music/wedding-01.mp3",
+  "mixkit-wedding-harp": "/music/wedding-harp.mp3",
+  "mixkit-wedding-02": "/music/wedding-02.mp3",
+  "mixkit-wedding-music": "/music/wedding-music.mp3",
+  "mixkit-wedding-song-03": "/music/wedding-song-03.mp3",
+  "mixkit-wedding-03": "/music/wedding-03.mp3",
+};
+
+function getContrastColor(hex: string) {
+  const value = hex.replace("#", "");
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 150 ? "#111111" : "#FFFFFF";
+}
+
 const defaultGifts = [
   {
     type: "bank" as const,
@@ -151,6 +203,7 @@ export default function WeddingInvitation() {
   const previewData = useMemo(() => decodePreviewData(searchParams.get("data")), [searchParams]);
   const [data, setData] = useState<WeddingData>(defaultData);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     if (previewData) {
@@ -202,8 +255,16 @@ export default function WeddingInvitation() {
 
     root.style.setProperty("--background", theme.colors.background);
     root.style.setProperty("--foreground", theme.colors.foreground);
-    root.style.setProperty("--primary", theme.colors.primary);
-    root.style.setProperty("--primary-foreground", theme.colors.primaryForeground);
+    let primary = theme.colors.primary;
+    let primaryForeground = theme.colors.primaryForeground;
+    const accentOverride = accentPalette[data.theme.primaryColor as string];
+    if (accentOverride) {
+      primary = accentOverride;
+      primaryForeground = getContrastColor(accentOverride);
+    }
+
+    root.style.setProperty("--primary", primary);
+    root.style.setProperty("--primary-foreground", primaryForeground);
     root.style.setProperty("--secondary", theme.colors.secondary);
     root.style.setProperty("--secondary-foreground", theme.colors.secondaryForeground);
     root.style.setProperty("--muted", theme.colors.muted);
@@ -213,9 +274,29 @@ export default function WeddingInvitation() {
     root.style.setProperty("--border", theme.colors.border);
     root.style.setProperty("--card", theme.colors.card);
     root.style.setProperty("--card-foreground", theme.colors.cardForeground);
-  }, [data.theme.theme, isHydrated]);
+  }, [data.theme.theme, data.theme.primaryColor, isHydrated]);
 
   // Prepare display data
+
+  const musicSrc = useMemo(() => {
+    if (!data.music.enabled) return null;
+    if (data.music.selectedMusic === "custom") {
+      return data.music.customMusicUrl || null;
+    }
+    return musicOptions[data.music.selectedMusic] || null;
+  }, [data.music]);
+
+  const toggleMusic = () => {
+    const audio = document.getElementById("wedding-music") as HTMLAudioElement | null;
+    if (!audio) return;
+    if (audio.paused) {
+      audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      return;
+    }
+    audio.pause();
+    setIsPlaying(false);
+  };
+
   const weddingData = {
     bride: {
       name: data.couple.brideName || "Sarah Amelia",
@@ -259,6 +340,7 @@ export default function WeddingInvitation() {
     gallery: data.gallery.photos.length > 0 
       ? data.gallery.photos.map((url, i) => ({ url, caption: `Photo ${i + 1}` }))
       : defaultGallery,
+    stories: data.story.stories.length > 0 ? data.story.stories : defaultStories,
     wishes: defaultWishes,
     gifts: data.gift.banks.length > 0
       ? data.gift.banks.map((bank) => ({
@@ -280,6 +362,18 @@ export default function WeddingInvitation() {
 
   return (
     <main className="min-h-screen bg-background">
+      {musicSrc && (
+        <>
+          <audio id="wedding-music" src={musicSrc} loop />
+          <button
+            type="button"
+            onClick={toggleMusic}
+            className="fixed bottom-6 right-6 z-50 rounded-full bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg"
+          >
+            {isPlaying ? "Hentikan Musik" : "Putar Musik"}
+          </button>
+        </>
+      )}
       <HeroSection
         brideName={weddingData.bride.name}
         groomName={weddingData.groom.name}
@@ -294,6 +388,8 @@ export default function WeddingInvitation() {
       <EventSection events={weddingData.events} />
 
       <GallerySection images={weddingData.gallery} />
+
+      <StorySection stories={weddingData.stories} />
 
       <RsvpSection guestName={weddingData.guestName} />
 

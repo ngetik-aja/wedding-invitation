@@ -6,10 +6,12 @@ import { ArrowLeft, Save, Share2 } from "lucide-react";
 
 interface CustomizeHeaderProps {
   onSave: () => void;
+  onShare: () => void;
   isSaving: boolean;
+  isShareOpen: boolean;
 }
 
-export function CustomizeHeader({ onSave, isSaving }: CustomizeHeaderProps) {
+export function CustomizeHeader({ onSave, onShare, isSaving, isShareOpen }: CustomizeHeaderProps) {
   return (
     <header className="border-b border-border bg-card flex flex-col gap-3 px-4 py-3 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div className="flex items-center gap-4">
@@ -30,7 +32,12 @@ export function CustomizeHeader({ onSave, isSaving }: CustomizeHeaderProps) {
       </div>
 
       <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-        <Button variant="outline" size="sm">
+        <Button
+          variant={isShareOpen ? "default" : "outline"}
+          size="sm"
+          onClick={onShare}
+          aria-pressed={isShareOpen}
+        >
           <Share2 className="w-4 h-4 mr-2" />
           Bagikan
         </Button>

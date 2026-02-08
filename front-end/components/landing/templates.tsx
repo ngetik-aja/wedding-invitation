@@ -1,52 +1,52 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Eye } from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const templates = [
   {
     id: 1,
     name: "Elegant Rose",
     category: "Elegant",
-    image: "/templates/elegant-rose.jpg",
+    image: "/themes/elegant-rose.jpg",
     popular: true,
   },
   {
     id: 2,
     name: "Rustic Garden",
     category: "Rustic",
-    image: "/templates/rustic-garden.jpg",
+    image: "/themes/rustic-garden.jpg",
     popular: false,
   },
   {
     id: 3,
     name: "Modern Minimalist",
     category: "Modern",
-    image: "/templates/modern-minimalist.jpg",
+    image: "/themes/modern-minimalist.jpg",
     popular: true,
   },
   {
     id: 4,
     name: "Classic Gold",
     category: "Classic",
-    image: "/templates/classic-gold.jpg",
+    image: "/themes/classic-gold.jpg",
     popular: false,
   },
   {
     id: 5,
     name: "Tropical Paradise",
     category: "Tropical",
-    image: "/templates/tropical-paradise.jpg",
+    image: "/themes/tropical-paradise.jpg",
     popular: false,
   },
   {
     id: 6,
     name: "Floral Dream",
     category: "Floral",
-    image: "/templates/floral-dream.jpg",
+    image: "/themes/floral-dream.jpg",
     popular: true,
   },
 ];

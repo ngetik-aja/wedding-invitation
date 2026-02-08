@@ -5,6 +5,8 @@ import { api } from "@/lib/api"
 export type InvitationListItem = {
   id: string
   customerId: string
+  customerName?: string
+  customerDomain?: string
   slug: string
   title: string
   searchName: string

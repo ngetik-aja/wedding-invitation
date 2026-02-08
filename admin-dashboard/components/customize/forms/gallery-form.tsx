@@ -12,9 +12,9 @@ import { WeddingFormValues } from "@/lib/wedding-form-schema";
 export function GalleryForm() {
   const { control, register, watch } = useFormContext<WeddingFormValues>();
   const { fields, append, remove } = useFieldArray({
-    control,
-    name: "gallery.photos",
-  });
+    control: control as any,
+    name: "gallery.photos" as any,
+  }) as { fields: any[]; append: (value: any) => void; remove: (index: number) => void };
 
   const photos = watch("gallery.photos");
 
@@ -37,7 +37,7 @@ export function GalleryForm() {
         <CardContent className="space-y-4">
           <div className="flex gap-2">
             <Button
-              onClick={() => append("")}
+              onClick={() => append("") }
               type="button"
               variant="outline"
             >

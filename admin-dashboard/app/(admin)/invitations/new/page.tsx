@@ -22,10 +22,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateInvitation } from "@/hooks/mutations/use-create-invitation";
-import { useRegisterCustomer } from "@/hooks/mutations/use-register-customer";
 import { useCustomers } from "@/hooks/queries/use-customers";
 import {
 	type CustomerFormValues,
@@ -49,15 +47,15 @@ const sections = [
 	{ id: "music", label: "Musik" },
 ];
 
-function encodePreview(data: Record<string, unknown>) {
-	const raw = JSON.stringify(data);
-	return encodeURIComponent(btoa(unescape(encodeURIComponent(raw))));
-}
+const paidStatuses = new Set(["paid"]);
+const isPaidCustomer = (status?: string) => {
+	const normalized = (status ?? "").trim().toLowerCase();
+	return paidStatuses.has(normalized);
+};
 
 export default function NewInvitationPage() {
 	const router = useRouter();
 	const { data: customerData } = useCustomers();
-	const registerCustomer = useRegisterCustomer();
 	const createInvitation = useCreateInvitation();
 
 	const [activeSection, setActiveSection] = useState("couple");
@@ -72,34 +70,26 @@ export default function NewInvitationPage() {
 	const customerForm = useForm<CustomerFormValues>({
 		resolver: zodResolver(customerFormSchema),
 		defaultValues: {
-			mode: "new",
-			fullName: "",
-			email: "",
-			password: "",
 			selectedCustomerId: undefined,
 		},
 		mode: "onBlur",
 	});
 
 	const weddingData = useWatch({ control: weddingForm.control });
-	const mode = customerForm.watch("mode");
+	const isSubmitting = createInvitation.isPending;
 
-	const isSubmitting = registerCustomer.isPending || createInvitation.isPending;
-
-	const customerOptions = useMemo(() => {
-		return (customerData?.items ?? []).map((item) => ({
-			value: item.id,
-			label: `${item.full_name} (${item.email})`,
-		}));
+	const paidCustomerOptions = useMemo(() => {
+		return (customerData?.items ?? [])
+			.filter((item) => isPaidCustomer(item.status))
+			.map((item) => ({
+				value: item.id,
+				label: `${item.full_name} (${item.email})`,
+			}));
 	}, [customerData]);
 
 	const previewUrl = useMemo(() => {
-		const base =
-			process.env.NEXT_PUBLIC_PREVIEW_URL || "http://localhost:3000/preview";
-		const previewData = { ...(weddingData as WeddingFormValues) };
-		delete (previewData as { isPublished?: boolean }).isPublished;
-		return `${base}?data=${encodePreview(previewData as unknown as Record<string, unknown>)}`;
-	}, [weddingData]);
+		return process.env.NEXT_PUBLIC_PREVIEW_URL || "http://localhost:3000/preview";
+	}, []);
 
 	const derivedTitle = useMemo(() => {
 		const groom = weddingData?.couple?.groomName?.trim() || "";
@@ -123,32 +113,16 @@ export default function NewInvitationPage() {
 		const content = { ...(weddingValues as WeddingFormValues) };
 		delete (content as { isPublished?: boolean }).isPublished;
 
-		if (customerValues.mode === "new") {
-			registerCustomer.mutate(
-				{
-					fullName: customerValues.fullName || "",
-					email: customerValues.email || "",
-					password: customerValues.password || "",
-					title: derivedTitle,
-					eventDate:
-						weddingValues.event.akadDate ||
-						weddingValues.event.resepsiDate ||
-						undefined,
-					themeKey: weddingValues.theme.theme,
-					content: content as unknown as Record<string, unknown>,
-				},
-				{
-					onSuccess: (data) => {
-						router.push(`/invitations/${data.invitation_id}`);
-					},
-					onError: () => setError("Gagal membuat undangan."),
-				},
-			);
+		if (!customerValues.selectedCustomerId) {
+			setError("Pilih pelanggan terlebih dahulu.");
 			return;
 		}
 
-		if (!customerValues.selectedCustomerId) {
-			setError("Pilih pelanggan terlebih dahulu.");
+		const selectedCustomer = (customerData?.items ?? []).find(
+			(item) => item.id === customerValues.selectedCustomerId,
+		);
+		if (!selectedCustomer || !isPaidCustomer(selectedCustomer.status)) {
+			setError("Pelanggan belum melakukan pembayaran.");
 			return;
 		}
 
@@ -286,104 +260,42 @@ export default function NewInvitationPage() {
 										</CardDescription>
 									</CardHeader>
 									<CardContent className="space-y-4">
-										<div className="flex flex-wrap gap-2">
-											<Button
-												type="button"
-												variant={mode == "new" ? "default" : "outline"}
-												onClick={() => customerForm.setValue("mode", "new")}
-											>
-												Pelanggan Baru
-											</Button>
-											<Button
-												type="button"
-												variant={mode == "existing" ? "default" : "outline"}
-												onClick={() =>
-													customerForm.setValue("mode", "existing")
+									<p className="text-sm text-muted-foreground">
+										Pilih pelanggan yang sudah terdaftar dan sudah bayar.
+									</p>
+									<div className="grid gap-2">
+										<Label>Pilih Pelanggan</Label>
+										<Controller
+											control={customerForm.control}
+											name="selectedCustomerId"
+											render={({ field }) => (
+												<Select
+													classNamePrefix="react-select"
+													placeholder="Cari nama pelanggan..."
+													options={paidCustomerOptions}
+													value={
+														paidCustomerOptions.find(
+															(option) => option.value === field.value,
+														) || null
+													}
+													onChange={(option) =>
+													field.onChange(option ? option.value : undefined)
 												}
-											>
-												Pelanggan Terdaftar
-											</Button>
-										</div>
-
-										{mode === "new" ? (
-											<div className="grid gap-4">
-												<div className="grid gap-2">
-													<Label htmlFor="fullName">Nama Lengkap</Label>
-													<Input
-														id="fullName"
-														placeholder="Nama lengkap pelanggan"
-														{...customerForm.register("fullName")}
-													/>
-													{customerForm.formState.errors.fullName && (
-														<p className="text-sm text-destructive">
-															{customerForm.formState.errors.fullName.message}
-														</p>
-													)}
-												</div>
-												<div className="grid gap-2">
-													<Label htmlFor="email">Email</Label>
-													<Input
-														id="email"
-														type="email"
-														placeholder="email@contoh.com"
-														{...customerForm.register("email")}
-													/>
-													{customerForm.formState.errors.email && (
-														<p className="text-sm text-destructive">
-															{customerForm.formState.errors.email.message}
-														</p>
-													)}
-												</div>
-												<div className="grid gap-2">
-													<Label htmlFor="password">Password</Label>
-													<Input
-														id="password"
-														type="password"
-														placeholder="Minimal 8 karakter"
-														{...customerForm.register("password")}
-													/>
-													{customerForm.formState.errors.password && (
-														<p className="text-sm text-destructive">
-															{customerForm.formState.errors.password.message}
-														</p>
-													)}
-												</div>
-											</div>
-										) : (
-											<div className="grid gap-2">
-												<Label>Pilih Pelanggan</Label>
-												<Controller
-													control={customerForm.control}
-													name="selectedCustomerId"
-													render={({ field }) => (
-														<Select
-															classNamePrefix="react-select"
-															placeholder="Cari nama pelanggan..."
-															options={customerOptions}
-															value={
-																customerOptions.find(
-																	(option) => option.value === field.value,
-																) || null
-															}
-															onChange={(option) =>
-																field.onChange(
-																	option ? option.value : undefined,
-																)
-															}
-														/>
-													)}
 												/>
-												{customerForm.formState.errors.selectedCustomerId && (
-													<p className="text-sm text-destructive">
-														{
-															customerForm.formState.errors.selectedCustomerId
-																.message
-														}
-													</p>
-												)}
-											</div>
+											)}
+										/>
+										{paidCustomerOptions.length === 0 && (
+											<p className="text-sm text-muted-foreground">
+												Belum ada pelanggan berstatus paid.
+											</p>
 										)}
-									</CardContent>
+										{customerForm.formState.errors.selectedCustomerId && (
+											<p className="text-sm text-destructive">
+												{customerForm.formState.errors.selectedCustomerId.message}
+											</p>
+										)}
+									</div>
+								</CardContent>
 								</Card>
 
 								{renderForm()}

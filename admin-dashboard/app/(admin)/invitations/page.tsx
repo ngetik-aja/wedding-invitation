@@ -148,7 +148,7 @@ export default function UndanganPage() {
                   data.items.map((inv) => (
                     <TableRow key={inv.id}>
                       <TableCell className="font-medium">
-                        {customerMap.get(inv.customerId)?.name ?? "-"}
+                        {inv.customerName || customerMap.get(inv.customerId)?.name || "-"}
                       </TableCell>
                       <TableCell>{inv.title || inv.searchName || "-"}</TableCell>
                       <TableCell>{formatEventDate(inv.eventDate)}</TableCell>
@@ -157,7 +157,7 @@ export default function UndanganPage() {
                           {inv.isPublished ? "Terpublikasi" : "Draft"}
                         </Badge>
                       </TableCell>
-                      <TableCell>{customerMap.get(inv.customerId)?.domain ?? "-"}</TableCell>
+                      <TableCell>{inv.customerDomain || customerMap.get(inv.customerId)?.domain || "-"}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button asChild size="sm" variant="outline">

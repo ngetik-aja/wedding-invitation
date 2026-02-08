@@ -43,15 +43,15 @@ CREATE TABLE IF NOT EXISTS plans (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS subscriptions (
+CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   plan_id UUID NOT NULL REFERENCES plans(id),
-  status TEXT NOT NULL DEFAULT 'active',
-  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  expires_at TIMESTAMPTZ,
-  payment_provider TEXT,
-  provider_ref TEXT,
+  amount INTEGER NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'IDR',
+  proof_of_payment TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  paid_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

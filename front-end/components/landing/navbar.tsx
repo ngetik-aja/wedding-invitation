@@ -12,7 +12,7 @@ export function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <nav className="max-w-6xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <Link href="/landing" className="font-serif text-2xl font-bold text-foreground">
+          <Link href="/" className="font-serif text-2xl font-bold text-foreground">
             Nikahku
           </Link>
 
@@ -37,7 +37,7 @@ export function Navbar() {
               <Link href="/login">Masuk</Link>
             </Button>
             <Button asChild>
-              <Link href="/customize">Buat Undangan</Link>
+              <Link href="/login">Buat Undangan</Link>
             </Button>
           </div>
 
@@ -89,7 +89,7 @@ export function Navbar() {
                   <Link href="/login">Masuk</Link>
                 </Button>
                 <Button asChild className="w-full">
-                  <Link href="/customize">Buat Undangan</Link>
+                  <Link href="/login">Buat Undangan</Link>
                 </Button>
               </div>
             </div>

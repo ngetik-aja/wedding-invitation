@@ -8,7 +8,7 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const layoutStyle: CSSProperties = {
+  const layoutStyle: CSSProperties & Record<string, string> = {
     "--sidebar-width": "calc(var(--spacing) * 72)",
     "--header-height": "calc(var(--spacing) * 12)",
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CountdownSection } from "@/components/wedding/countdown-section";
 import { CoupleSection } from "@/components/wedding/couple-section";
@@ -13,8 +13,7 @@ import { RsvpSection } from "@/components/wedding/rsvp-section";
 import { StorySection } from "@/components/wedding/story-section";
 import { WishesSection } from "@/components/wedding/wishes-section";
 import { type ThemeKey, themes, type WeddingData } from "@/lib/wedding-context";
-
-const STORAGE_KEY = "wedding-invitation-data";
+import { apiClient } from "@/lib/http";
 
 const defaultData: WeddingData = {
   couple: {
@@ -173,6 +172,26 @@ function decodePreviewData(value: string | null) {
   }
 }
 
+type InvitationResponse = {
+  content?: unknown;
+  theme_key?: string | null;
+};
+
+function parseInvitationContent(raw: unknown): WeddingData | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw) as WeddingData;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof raw === "object") {
+    return raw as WeddingData;
+  }
+  return null;
+}
+
 function formatDate(dateStr: string): string {
   if (!dateStr) return "Saturday, March 15th, 2025";
   const date = new Date(dateStr);
@@ -198,9 +217,13 @@ function formatTime(startTime: string, endTime: string): string {
   return `${formatSingleTime(startTime)} - ${formatSingleTime(endTime || startTime)}`;
 }
 
-export default function WeddingInvitation() {
+function WeddingInvitationContent() {
   const searchParams = useSearchParams();
   const previewData = useMemo(() => decodePreviewData(searchParams.get("data")), [searchParams]);
+  const previewId = useMemo(() => {
+    const value = searchParams.get("id");
+    return value ? value.trim() : "";
+  }, [searchParams]);
   const [data, setData] = useState<WeddingData>(defaultData);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -212,38 +235,45 @@ export default function WeddingInvitation() {
       return;
     }
 
-    const loadData = () => {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setData({ ...defaultData, ...parsed });
-        } catch {
-          // ignore
-        }
-      }
+    if (!previewId) {
+      setData(defaultData);
       setIsHydrated(true);
-    };
+      return;
+    }
 
-    loadData();
+    let isActive = true;
+    setIsHydrated(false);
 
-    // Listen for storage changes
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) {
-        loadData();
-      }
-    };
-
-    window.addEventListener("storage", handleStorage);
-
-    // Poll for changes (for iframe in same page)
-    const interval = setInterval(loadData, 1000);
+    apiClient
+      .get<InvitationResponse>(`/api/v1/customer/invitations/${previewId}`)
+      .then((response) => {
+        if (!isActive) return;
+        const content = parseInvitationContent(response.data?.content);
+        const themeKey = response.data?.theme_key?.trim();
+        const mergedTheme = themeKey
+          ? {
+              ...(content?.theme || {}),
+              theme: themeKey,
+            }
+          : content?.theme;
+        const merged = {
+          ...defaultData,
+          ...(content || {}),
+          ...(mergedTheme ? { theme: { ...defaultData.theme, ...mergedTheme } } : null),
+        } as WeddingData;
+        setData(merged);
+        setIsHydrated(true);
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setData(defaultData);
+        setIsHydrated(true);
+      });
 
     return () => {
-      window.removeEventListener("storage", handleStorage);
-      clearInterval(interval);
+      isActive = false;
     };
-  }, [previewData]);
+  }, [previewData, previewId]);
 
   // Apply theme
   useEffect(() => {
@@ -402,5 +432,20 @@ export default function WeddingInvitation() {
         groomName={weddingData.groom.name}
       />
     </main>
+  );
+}
+
+
+export default function WeddingInvitation() {
+  return (
+    <Suspense
+      fallback={(
+        <main className="min-h-screen bg-background flex items-center justify-center">
+          <div className="animate-pulse text-muted-foreground">Loading...</div>
+        </main>
+      )}
+    >
+      <WeddingInvitationContent />
+    </Suspense>
   );
 }

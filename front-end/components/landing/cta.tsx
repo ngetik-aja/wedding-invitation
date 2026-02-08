@@ -10,11 +10,11 @@ export function CTA() {
           Siap Membuat Undangan Impian Anda?
         </h2>
         <p className="text-primary-foreground/80 text-lg mb-8 max-w-xl mx-auto">
-          Mulai buat undangan pernikahan digital Anda sekarang. Gratis untuk dicoba, tanpa perlu kartu kredit.
+          Mulai buat undangan pernikahan digital Anda sekarang. Harga sekali bayar, tanpa biaya tersembunyi.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button size="lg" variant="secondary" asChild className="text-base px-8">
-            <Link href="/customize">
+            <Link href="/login">
               Buat Undangan Sekarang
               <ArrowRight className="w-5 h-5 ml-2" />
             </Link>

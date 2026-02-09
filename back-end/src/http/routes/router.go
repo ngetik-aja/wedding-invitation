@@ -21,6 +21,7 @@ type Services struct {
 	Customer        *customersvc.CustomerService
 	Invitation      *customersvc.InvitationService
 	Register        *customersvc.RegisterService
+	CustomerLogin   *customersvc.LoginService
 	AdminAuth       *adminsvc.AuthService
 	AdminUser       *adminsvc.UserService
 	AdminInvitation *adminsvc.InvitationService
@@ -56,6 +57,7 @@ func SetupRouter(pool *pgxpool.Pool, baseDomain string, jwtConfig auth.Config, s
 	customer.RegisterRoutes(api.Group("/customer"), customer.Services{
 		Register:   services.Register,
 		Invitation: services.Invitation,
+		Login:      services.CustomerLogin,
 	})
 
 	admin.RegisterRoutes(api.Group("/admin"), admin.Services{

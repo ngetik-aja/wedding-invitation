@@ -10,13 +10,16 @@ import (
 type Services struct {
 	Register   *customersvc.RegisterService
 	Invitation *customersvc.InvitationService
+	Login      *customersvc.LoginService
 }
 
 func RegisterRoutes(group *gin.RouterGroup, services Services) {
 	customerRegisterHandler := &customhandlers.RegisterHandler{Service: services.Register}
+	customerLoginHandler := &customhandlers.LoginHandler{Service: services.Login}
 	customerInvitationHandler := &customhandlers.InvitationHandler{Service: services.Invitation}
 
 	group.POST("/register", customerRegisterHandler.Register)
+	group.POST("/login", customerLoginHandler.Login)
 	group.GET("/invitations/:id", customerInvitationHandler.GetInvitation)
 	group.PATCH("/invitations/:id", customerInvitationHandler.UpdateInvitation)
 }

@@ -53,6 +53,7 @@ func Run() error {
 	customerService := &customersvc.CustomerService{Repo: customerRepo}
 	invitationService := &customersvc.InvitationService{Repo: invitationRepo}
 	registerService := &customersvc.RegisterService{CustomerRepo: customerRepo, InvitationRepo: invitationRepo, BaseDomain: baseDomain}
+	loginService := &customersvc.LoginService{CustomerRepo: customerRepo, InvitationRepo: invitationRepo}
 	adminAuthService := &adminsvc.AuthService{Repo: userRepo, Config: jwtConfig}
 	adminUserService := &adminsvc.UserService{Repo: userRepo}
 	adminInvitationService := &adminsvc.InvitationService{Repo: invitationRepo, CustomerRepo: customerRepo, BaseDomain: baseDomain}
@@ -61,6 +62,7 @@ func Run() error {
 		Customer:        customerService,
 		Invitation:      invitationService,
 		Register:        registerService,
+		CustomerLogin:   loginService,
 		AdminAuth:       adminAuthService,
 		AdminUser:       adminUserService,
 		AdminInvitation: adminInvitationService,

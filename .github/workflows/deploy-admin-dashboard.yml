@@ -1,0 +1,31 @@
+name: Deploy Admin Dashboard
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "admin-dashboard/**"
+      - ".github/workflows/deploy-admin-dashboard.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install flyctl
+        run: |
+          curl -L https://fly.io/install.sh | sh
+          echo "$HOME/.fly/bin" >> "$GITHUB_PATH"
+
+      - name: Deploy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
+          NEXT_PUBLIC_PREVIEW_URL: ${{ secrets.NEXT_PUBLIC_PREVIEW_URL }}
+        run: |
+          fly deploy -a dashboard-undangan-nikah -c admin-dashboard/fly.toml \
+            --build-arg NEXT_PUBLIC_API_BASE_URL="$NEXT_PUBLIC_API_BASE_URL" \
+            --build-arg NEXT_PUBLIC_PREVIEW_URL="$NEXT_PUBLIC_PREVIEW_URL"

@@ -31,3 +31,24 @@ export async function registerCustomer(payload: RegisterPayload): Promise<Regist
   })
   return data
 }
+
+
+export type LoginPayload = {
+  email: string
+  password: string
+}
+
+export type LoginResponse = {
+  customer_id: string
+  invitation_id: string
+  slug: string
+  domain: string
+}
+
+export async function loginCustomer(payload: LoginPayload): Promise<LoginResponse> {
+  const { data } = await apiClient.post<LoginResponse>("/api/v1/customer/login", {
+    email: payload.email,
+    password: payload.password,
+  })
+  return data
+}

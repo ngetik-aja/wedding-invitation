@@ -1,7 +1,6 @@
 import React from "react"
 import type { Metadata } from 'next'
 import { Playfair_Display, Lato } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { Providers } from "@/app/providers"
 
@@ -40,9 +39,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${_playfair.variable} ${_lato.variable} font-sans antialiased`}>
         <Providers>
-          {children}
-          <Analytics />
-        </Providers>
+          {children}</Providers>
       </body>
     </html>
   )

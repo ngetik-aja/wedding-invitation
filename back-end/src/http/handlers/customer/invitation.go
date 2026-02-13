@@ -11,6 +11,7 @@ import (
 	"github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers/validation"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
 	customersvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
+	"github.com/proxima-labs/wedding-invitation-back-end/src/service/shared"
 )
 
 type InvitationHandler struct {
@@ -19,6 +20,7 @@ type InvitationHandler struct {
 
 type invitationUpdatePayload struct {
 	CustomerID  string          `json:"customer_id" binding:"required"`
+	Slug        string          `json:"slug"`
 	Title       string          `json:"title"`
 	EventDate   string          `json:"event_date"`
 	ThemeKey    string          `json:"theme_key"`
@@ -123,9 +125,21 @@ func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
 		content = []byte("{}")
 	}
 
+	// Priority slug source:
+	// 1) derive from couple names in content
+	// 2) explicit slug from payload
+	// 3) existing invitation slug
+	slug := deriveSlugFromContent(content)
+	if slug == "" {
+		slug = strings.TrimSpace(payload.Slug)
+	}
+	if slug == "" {
+		slug = inv.Slug
+	}
+
 	if err := h.Service.Update(c.Request.Context(), id, repository.InvitationUpdateInput{
 		CustomerID:  inv.CustomerID,
-		Slug:        inv.Slug,
+		Slug:        slug,
 		Title:       title,
 		SearchName:  searchName,
 		EventDate:   eventDate,
@@ -138,4 +152,43 @@ func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func deriveSlugFromContent(content json.RawMessage) string {
+	if len(bytes.TrimSpace(content)) == 0 {
+		return ""
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		return ""
+	}
+
+	coupleRaw, ok := payload["couple"]
+	if !ok {
+		return ""
+	}
+
+	couple, ok := coupleRaw.(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	groom, _ := couple["groomName"].(string)
+	bride, _ := couple["brideName"].(string)
+
+	groomSlug := shared.Slugify(strings.TrimSpace(groom))
+	brideSlug := shared.Slugify(strings.TrimSpace(bride))
+
+	if groomSlug != "" && brideSlug != "" {
+		return groomSlug + "-" + brideSlug
+	}
+	if groomSlug != "" {
+		return groomSlug
+	}
+	if brideSlug != "" {
+		return brideSlug
+	}
+
+	return ""
 }

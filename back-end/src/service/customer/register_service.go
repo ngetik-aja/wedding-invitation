@@ -3,15 +3,15 @@ package customer
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
 
-	"github.com/proxima-labs/wedding-invitation-back-end/src/service/shared"
-
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
+	"github.com/proxima-labs/wedding-invitation-back-end/src/service/shared"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type RegisterInput struct {
@@ -72,41 +72,34 @@ func (s *RegisterService) Register(ctx context.Context, input RegisterInput) (cu
 
 	domain = buildCustomerDomain(slug, s.BaseDomain)
 
-	tx, err := s.CustomerRepo.DB.Begin(ctx)
-	if err != nil {
-		return "", "", "", "", err
-	}
-	defer func() {
+	err = s.CustomerRepo.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		customerID, err = s.CustomerRepo.CreateTx(ctx, tx, repository.CustomerCreateInput{
+			FullName:     input.FullName,
+			Email:        input.Email,
+			PasswordHash: string(passwordHash),
+			Domain:       domain,
+		})
 		if err != nil {
-			_ = tx.Rollback(ctx)
+			return err
 		}
-	}()
 
-	customerID, err = s.CustomerRepo.CreateTx(ctx, tx, repository.CustomerCreateInput{
-		FullName:     input.FullName,
-		Email:        input.Email,
-		PasswordHash: string(passwordHash),
-		Domain:       domain,
+		invitationID, err = s.InvitationRepo.CreateTx(ctx, tx, repository.InvitationCreateInput{
+			CustomerID:  customerID,
+			Slug:        slug,
+			Title:       input.Title,
+			SearchName:  searchName,
+			EventDate:   input.EventDate,
+			ThemeKey:    input.ThemeKey,
+			IsPublished: false,
+			Content:     normalizeContent(input.Content, input.FullName),
+		})
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
-		return "", "", "", "", err
-	}
-
-	invitationID, err = s.InvitationRepo.CreateTx(ctx, tx, repository.InvitationCreateInput{
-		CustomerID:  customerID,
-		Slug:        slug,
-		Title:       input.Title,
-		SearchName:  searchName,
-		EventDate:   input.EventDate,
-		ThemeKey:    input.ThemeKey,
-		IsPublished: false,
-		Content:     normalizeContent(input.Content),
-	})
-	if err != nil {
-		return "", "", "", "", err
-	}
-
-	if err = tx.Commit(ctx); err != nil {
 		return "", "", "", "", err
 	}
 
@@ -125,9 +118,30 @@ func buildCustomerDomain(slug string, baseDomain string) string {
 	return slug + "." + baseDomain
 }
 
-func normalizeContent(input []byte) []byte {
-	if len(bytes.TrimSpace(input)) == 0 {
+func normalizeContent(input []byte, fullName string) []byte {
+	if len(bytes.TrimSpace(input)) > 0 {
+		return input
+	}
+
+	fullName = strings.TrimSpace(fullName)
+	firstName := fullName
+	if fullName != "" {
+		parts := strings.Fields(fullName)
+		if len(parts) > 0 {
+			firstName = parts[0]
+		}
+	}
+
+	payload := map[string]any{
+		"couple": map[string]any{
+			"groomName":     firstName,
+			"groomFullName": fullName,
+		},
+	}
+
+	encoded, err := json.Marshal(payload)
+	if err != nil {
 		return []byte("{}")
 	}
-	return input
+	return encoded
 }

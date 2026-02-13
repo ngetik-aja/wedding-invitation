@@ -6,6 +6,7 @@ interface HeroSectionProps {
   brideName: string;
   groomName: string;
   weddingDate: string;
+  guestLabel?: string;
   guestName?: string;
 }
 
@@ -13,17 +14,23 @@ export function HeroSection({
   brideName,
   groomName,
   weddingDate,
+  guestLabel,
   guestName,
 }: HeroSectionProps) {
   return (
     <section className="min-h-screen flex flex-col items-center justify-center px-6 py-16 text-center">
       <div className="max-w-2xl mx-auto">
-        {guestName && (
+        {(guestLabel || guestName) && (
           <div className="mb-8">
             <p className="text-sm uppercase tracking-widest text-muted-foreground mb-2">
               Dear
             </p>
-            <p className="text-xl font-medium text-foreground">{guestName}</p>
+            {guestLabel && (
+              <p className="text-xl font-medium text-foreground">{guestLabel}</p>
+            )}
+            {guestName && (
+              <p className="mt-1 text-xl uppercase font-bold text-foreground/90">{guestName}</p>
+            )}
           </div>
         )}
 

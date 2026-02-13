@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 
 	"github.com/proxima-labs/wedding-invitation-back-end/src/auth"
 	handlers "github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers"
@@ -34,7 +34,7 @@ type routeInfo struct {
 	Handlers int
 }
 
-func SetupRouter(pool *pgxpool.Pool, baseDomain string, jwtConfig auth.Config, services Services) *gin.Engine {
+func SetupRouter(db *gorm.DB, baseDomain string, jwtConfig auth.Config, services Services) *gin.Engine {
 	printRoutes := initRouteLogger()
 
 	router := gin.New()
@@ -42,7 +42,7 @@ func SetupRouter(pool *pgxpool.Pool, baseDomain string, jwtConfig auth.Config, s
 	router.Use(gin.Logger())
 	router.Use(middleware.CORS())
 
-	healthHandler := &handlers.HealthHandler{DB: pool}
+	healthHandler := &handlers.HealthHandler{DB: db}
 
 	// System routes
 	router.GET("/healthz", healthHandler.Healthz)

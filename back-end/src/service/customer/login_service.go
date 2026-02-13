@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/proxima-labs/wedding-invitation-back-end/src/query"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
 )
 
@@ -37,7 +38,7 @@ func (s *LoginService) Login(ctx context.Context, email, password string) (custo
 		return "", "", "", "", ErrInvalidCredentials
 	}
 
-	items, err := s.InvitationRepo.List(ctx, repository.InvitationListFilters{
+	items, err := s.InvitationRepo.List(ctx, query.InvitationListFilters{
 		CustomerID: customer.ID,
 		Limit:      1,
 		Offset:     0,

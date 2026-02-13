@@ -160,18 +160,6 @@ const defaultGifts = [
   },
 ];
 
-function decodePreviewData(value: string | null) {
-  if (!value) return null;
-  try {
-    const decoded = decodeURIComponent(value);
-    const raw = atob(decoded);
-    const json = decodeURIComponent(escape(raw));
-    return JSON.parse(json) as WeddingData;
-  } catch {
-    return null;
-  }
-}
-
 type InvitationResponse = {
   content?: unknown;
   theme_key?: string | null;
@@ -219,22 +207,20 @@ function formatTime(startTime: string, endTime: string): string {
 
 function WeddingInvitationContent() {
   const searchParams = useSearchParams();
-  const previewData = useMemo(() => decodePreviewData(searchParams.get("data")), [searchParams]);
   const previewId = useMemo(() => {
     const value = searchParams.get("id");
     return value ? value.trim() : "";
+  }, [searchParams]);
+  const previewGuest = useMemo(() => {
+    const value = searchParams.get("guest");
+    if (!value) return "";
+    return decodeURIComponent(value).replace(/-/g, " ");
   }, [searchParams]);
   const [data, setData] = useState<WeddingData>(defaultData);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
-    if (previewData) {
-      setData({ ...defaultData, ...previewData });
-      setIsHydrated(true);
-      return;
-    }
-
     if (!previewId) {
       setData(defaultData);
       setIsHydrated(true);
@@ -245,7 +231,7 @@ function WeddingInvitationContent() {
     setIsHydrated(false);
 
     apiClient
-      .get<InvitationResponse>(`/api/v1/customer/invitations/${previewId}`)
+      .get<InvitationResponse>("/api/v1/customer/invitations/" + previewId)
       .then((response) => {
         if (!isActive) return;
         const content = parseInvitationContent(response.data?.content);
@@ -273,7 +259,33 @@ function WeddingInvitationContent() {
     return () => {
       isActive = false;
     };
-  }, [previewData, previewId]);
+  }, [previewId]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data as { type?: string; payload?: unknown } | null;
+      if (!message || message.type !== "WEDDING_PREVIEW_UPDATE") return;
+
+      const incoming = parseInvitationContent(message.payload);
+      if (!incoming) return;
+
+      setData((prev) => {
+        const mergedTheme = incoming.theme
+          ? { ...prev.theme, ...incoming.theme }
+          : prev.theme;
+
+        return {
+          ...prev,
+          ...incoming,
+          theme: mergedTheme,
+        } as WeddingData;
+      });
+      setIsHydrated(true);
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   // Apply theme
   useEffect(() => {
@@ -348,7 +360,8 @@ function WeddingInvitationContent() {
     },
     weddingDate: formatDate(data.event.akadDate),
     targetDate: data.event.akadDate ? new Date(`${data.event.akadDate}T${data.event.akadTime || "10:00"}:00`) : new Date("2025-03-15T10:00:00"),
-    guestName: "Bapak/Ibu/Saudara/i",
+    guestLabel: "Bapak/Ibu/Saudara/i",
+    guestName: previewGuest,
     events: [
       {
         title: "Akad Nikah / Pemberkatan",
@@ -408,6 +421,7 @@ function WeddingInvitationContent() {
         brideName={weddingData.bride.name}
         groomName={weddingData.groom.name}
         weddingDate={weddingData.weddingDate}
+        guestLabel={weddingData.guestLabel}
         guestName={weddingData.guestName}
       />
 
@@ -421,7 +435,7 @@ function WeddingInvitationContent() {
 
       <StorySection stories={weddingData.stories} />
 
-      <RsvpSection guestName={weddingData.guestName} />
+      <RsvpSection guestName={weddingData.guestName || weddingData.guestLabel} />
 
       <WishesSection wishes={weddingData.wishes} />
 

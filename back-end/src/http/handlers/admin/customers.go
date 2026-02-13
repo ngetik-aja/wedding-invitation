@@ -26,15 +26,17 @@ type customerListResponse struct {
 }
 
 func (h *CustomerHandler) ListCustomers(c *gin.Context) {
-	limit := 100
+	limit := 0
 	if value := c.Query("limit"); value != "" {
 		parsed, err := strconv.Atoi(value)
-		if err != nil || parsed <= 0 {
+		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
 			return
 		}
 		limit = parsed
 	}
+
+	limit = h.Service.NormalizeListLimit(limit)
 
 	items, err := h.Service.List(c.Request.Context(), limit)
 	if err != nil {

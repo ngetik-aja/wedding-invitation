@@ -2,15 +2,11 @@ package repository
 
 import (
 	"context"
-	"strconv"
-	"strings"
+	"errors"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/model"
-	"gorm.io/driver/postgres"
+	"github.com/proxima-labs/wedding-invitation-back-end/src/query"
 	"gorm.io/gorm"
 )
 
@@ -37,7 +33,7 @@ type invitationWithCustomerRow struct {
 }
 
 type InvitationRepository struct {
-	DB *pgxpool.Pool
+	DB *gorm.DB
 }
 
 type InvitationCreateInput struct {
@@ -54,236 +50,132 @@ type InvitationCreateInput struct {
 type InvitationUpdateInput = InvitationCreateInput
 
 func (r *InvitationRepository) Create(ctx context.Context, input InvitationCreateInput) (string, error) {
-	return r.createWithQuerier(ctx, r.DB, input)
+	return r.createWithDB(ctx, r.DB, input)
 }
 
-func (r *InvitationRepository) CreateTx(ctx context.Context, tx pgx.Tx, input InvitationCreateInput) (string, error) {
-	return r.createWithQuerier(ctx, tx, input)
+func (r *InvitationRepository) CreateTx(ctx context.Context, tx *gorm.DB, input InvitationCreateInput) (string, error) {
+	return r.createWithDB(ctx, tx, input)
 }
 
-func (r *InvitationRepository) createWithQuerier(ctx context.Context, querier interface {
-	QueryRow(context.Context, string, ...any) pgx.Row
-}, input InvitationCreateInput) (string, error) {
-	var id string
-	err := querier.QueryRow(ctx, `
-		INSERT INTO invitations (
-			customer_id,
-			slug,
-			title,
-			search_name,
-			event_date,
-			theme_key,
-			is_published,
-			content
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id
-	`, input.CustomerID, input.Slug, input.Title, input.SearchName, input.EventDate, input.ThemeKey, input.IsPublished, input.Content).Scan(&id)
-	return id, err
+func (r *InvitationRepository) createWithDB(ctx context.Context, db *gorm.DB, input InvitationCreateInput) (string, error) {
+	inv := model.Invitation{
+		CustomerID:  input.CustomerID,
+		Slug:        input.Slug,
+		Title:       input.Title,
+		SearchName:  input.SearchName,
+		EventDate:   input.EventDate,
+		ThemeKey:    input.ThemeKey,
+		IsPublished: input.IsPublished,
+		Content:     input.Content,
+	}
+	if err := db.WithContext(ctx).Model(&model.Invitation{}).Create(&inv).Error; err != nil {
+		return "", err
+	}
+	return inv.ID, nil
 }
 
 func (r *InvitationRepository) GetByID(ctx context.Context, id string) (model.Invitation, bool, error) {
 	var inv model.Invitation
-	row := r.DB.QueryRow(ctx, `
-		SELECT id, customer_id, slug, title, search_name, event_date, theme_key, is_published, content, created_at, updated_at
-		FROM invitations
-		WHERE id = $1
-		LIMIT 1
-	`, id)
-	if err := row.Scan(
-		&inv.ID,
-		&inv.CustomerID,
-		&inv.Slug,
-		&inv.Title,
-		&inv.SearchName,
-		&inv.EventDate,
-		&inv.ThemeKey,
-		&inv.IsPublished,
-		&inv.Content,
-		&inv.CreatedAt,
-		&inv.UpdatedAt,
-	); err != nil {
+	err := r.DB.WithContext(ctx).Model(&model.Invitation{}).Where("id = ?", id).First(&inv).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return model.Invitation{}, false, nil
+	}
+	if err != nil {
+		return model.Invitation{}, false, err
 	}
 	return inv, true, nil
 }
 
 func (r *InvitationRepository) Update(ctx context.Context, id string, input InvitationUpdateInput) error {
-	_, err := r.DB.Exec(ctx, `
-		UPDATE invitations
-		SET customer_id = $2,
-			slug = $3,
-			title = $4,
-			search_name = $5,
-			event_date = $6,
-			theme_key = $7,
-			is_published = $8,
-			content = $9,
-			updated_at = now()
-		WHERE id = $1
-	`, id, input.CustomerID, input.Slug, input.Title, input.SearchName, input.EventDate, input.ThemeKey, input.IsPublished, input.Content)
-	return err
+	updates := map[string]any{
+		"customer_id":  input.CustomerID,
+		"slug":         input.Slug,
+		"title":        input.Title,
+		"search_name":  input.SearchName,
+		"event_date":   input.EventDate,
+		"theme_key":    input.ThemeKey,
+		"is_published": input.IsPublished,
+		"content":      input.Content,
+	}
+
+	return r.DB.WithContext(ctx).
+		Model(&model.Invitation{}).
+		Where("id = ?", id).
+		Updates(updates).Error
 }
 
 func (r *InvitationRepository) Delete(ctx context.Context, id string) error {
-	_, err := r.DB.Exec(ctx, `
-		DELETE FROM invitations
-		WHERE id = $1
-	`, id)
-	return err
+	return r.DB.WithContext(ctx).Where("id = ?", id).Delete(&model.Invitation{}).Error
 }
 
 func (r *InvitationRepository) FindPublishedByCustomerAndSlug(ctx context.Context, customerID, slug string) (model.Invitation, bool, error) {
 	var inv model.Invitation
-	row := r.DB.QueryRow(ctx, `
-		SELECT id, customer_id, slug, title, search_name, event_date, theme_key, is_published, content, created_at, updated_at
-		FROM invitations
-		WHERE customer_id = $1 AND slug = $2 AND is_published = true
-		LIMIT 1
-	`, customerID, slug)
-	if err := row.Scan(
-		&inv.ID,
-		&inv.CustomerID,
-		&inv.Slug,
-		&inv.Title,
-		&inv.SearchName,
-		&inv.EventDate,
-		&inv.ThemeKey,
-		&inv.IsPublished,
-		&inv.Content,
-		&inv.CreatedAt,
-		&inv.UpdatedAt,
-	); err != nil {
+	err := r.DB.WithContext(ctx).
+		Model(&model.Invitation{}).
+		Where("customer_id = ? AND slug = ? AND is_published = ?", customerID, slug, true).
+		First(&inv).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return model.Invitation{}, false, nil
+	}
+	if err != nil {
+		return model.Invitation{}, false, err
 	}
 	return inv, true, nil
 }
 
-func (r *InvitationRepository) List(ctx context.Context, filters InvitationListFilters) ([]model.Invitation, error) {
-	args := make([]any, 0)
-	where := make([]string, 0)
+func (r *InvitationRepository) List(ctx context.Context, filters query.InvitationListFilters) ([]model.Invitation, error) {
+	query := r.DB.WithContext(ctx).Model(&model.Invitation{})
 
 	if filters.CustomerID != "" {
-		args = append(args, filters.CustomerID)
-		where = append(where, "customer_id = $"+itoa(len(args)))
+		query = query.Where("customer_id = ?", filters.CustomerID)
 	}
 	if filters.Status != "" {
-		args = append(args, filters.Status == "published")
-		where = append(where, "is_published = $"+itoa(len(args)))
+		query = query.Where("is_published = ?", filters.Status == "published")
 	}
 	if filters.DateFrom != nil {
-		args = append(args, *filters.DateFrom)
-		where = append(where, "event_date >= $"+itoa(len(args)))
+		query = query.Where("event_date >= ?", *filters.DateFrom)
 	}
 	if filters.DateTo != nil {
-		args = append(args, *filters.DateTo)
-		where = append(where, "event_date <= $"+itoa(len(args)))
+		query = query.Where("event_date <= ?", *filters.DateTo)
 	}
 	if filters.Query != "" {
-		args = append(args, "%"+filters.Query+"%")
-		idx := itoa(len(args))
-		where = append(where, "(title ILIKE $"+idx+" OR search_name ILIKE $"+idx+")")
+		likeQuery := "%" + filters.Query + "%"
+		query = query.Where("(title ILIKE ? OR search_name ILIKE ?)", likeQuery, likeQuery)
 	}
-
-	limit := filters.Limit
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-	offset := filters.Offset
-	if offset < 0 {
-		offset = 0
-	}
-
-	args = append(args, limit)
-	limitIdx := itoa(len(args))
-	args = append(args, offset)
-	offsetIdx := itoa(len(args))
-
-	query := `
-		SELECT id, customer_id, slug, title, search_name, event_date, theme_key, is_published, content, created_at, updated_at
-		FROM invitations
-	`
-	if len(where) > 0 {
-		query += "WHERE " + strings.Join(where, " AND ") + "\n"
-	}
-	query += "ORDER BY created_at DESC\n"
-	query += "LIMIT $" + limitIdx + " OFFSET $" + offsetIdx
-
-	rows, err := r.DB.Query(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 
 	items := make([]model.Invitation, 0)
-	for rows.Next() {
-		var item model.Invitation
-		if err := rows.Scan(
-			&item.ID,
-			&item.CustomerID,
-			&item.Slug,
-			&item.Title,
-			&item.SearchName,
-			&item.EventDate,
-			&item.ThemeKey,
-			&item.IsPublished,
-			&item.Content,
-			&item.CreatedAt,
-			&item.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
-
-	return items, rows.Err()
-}
-
-func (r *InvitationRepository) ListWithCustomer(ctx context.Context, filters InvitationListFilters) ([]InvitationWithCustomer, error) {
-	limit := filters.Limit
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-	offset := filters.Offset
-	if offset < 0 {
-		offset = 0
-	}
-	likeQuery := "%" + filters.Query + "%"
-
-	sqlDB := stdlib.OpenDBFromPool(r.DB)
-	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{})
-	if err != nil {
+	if err := query.Order("created_at DESC").Limit(filters.Limit).Offset(filters.Offset).Find(&items).Error; err != nil {
 		return nil, err
 	}
 
-	query := db.Table("invitations as i").
-		Select("i.id, i.customer_id, i.slug, i.title, i.search_name, i.event_date, i.theme_key, i.is_published, i.content, i.created_at, i.updated_at, c.full_name as customer_name, c.domain as customer_domain").
-		Joins("LEFT JOIN customers c ON c.id = i.customer_id")
+	return items, nil
+}
+
+func (r *InvitationRepository) ListWithCustomer(ctx context.Context, filters query.InvitationListFilters) ([]InvitationWithCustomer, error) {
+	query := r.DB.WithContext(ctx).
+		Model(&model.Invitation{}).
+		Select("invitations.id, invitations.customer_id, invitations.slug, invitations.title, invitations.search_name, invitations.event_date, invitations.theme_key, invitations.is_published, invitations.content, invitations.created_at, invitations.updated_at, customers.full_name as customer_name, customers.domain as customer_domain").
+		Joins("LEFT JOIN customers ON customers.id = invitations.customer_id")
 
 	if filters.CustomerID != "" {
-		query = query.Where("i.customer_id = ?", filters.CustomerID)
+		query = query.Where("invitations.customer_id = ?", filters.CustomerID)
 	}
 	if filters.Status != "" {
-		query = query.Where("i.is_published = ?", filters.Status == "published")
+		query = query.Where("invitations.is_published = ?", filters.Status == "published")
 	}
 	if filters.DateFrom != nil {
-		query = query.Where("i.event_date >= ?", *filters.DateFrom)
+		query = query.Where("invitations.event_date >= ?", *filters.DateFrom)
 	}
 	if filters.DateTo != nil {
-		query = query.Where("i.event_date <= ?", *filters.DateTo)
+		query = query.Where("invitations.event_date <= ?", *filters.DateTo)
 	}
 	if filters.Query != "" {
-		query = query.Where("(i.title ILIKE ? OR i.search_name ILIKE ?)", likeQuery, likeQuery)
+		likeQuery := "%" + filters.Query + "%"
+		query = query.Where("(invitations.title ILIKE ? OR invitations.search_name ILIKE ?)", likeQuery, likeQuery)
 	}
 
-	var rows []invitationWithCustomerRow
-	if err := query.Order("i.created_at DESC").Limit(limit).Offset(offset).Scan(&rows).Error; err != nil {
+	rows := make([]invitationWithCustomerRow, 0)
+	if err := query.Order("invitations.created_at DESC").Limit(filters.Limit).Offset(filters.Offset).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 
@@ -311,23 +203,16 @@ func (r *InvitationRepository) ListWithCustomer(ctx context.Context, filters Inv
 	return items, nil
 }
 
-func itoa(value int) string {
-	return strconv.Itoa(value)
-}
-
 func (r *InvitationRepository) ExistsByCustomerAndSlug(ctx context.Context, customerID, slug string) (bool, error) {
-	var exists bool
-	row := r.DB.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1
-			FROM invitations
-			WHERE customer_id = $1 AND slug = $2
-		)
-	`, customerID, slug)
-	if err := row.Scan(&exists); err != nil {
+	var count int64
+	err := r.DB.WithContext(ctx).
+		Model(&model.Invitation{}).
+		Where("customer_id = ? AND slug = ?", customerID, slug).
+		Count(&count).Error
+	if err != nil {
 		return false, err
 	}
-	return exists, nil
+	return count > 0, nil
 }
 
 func derefString(value *string) string {

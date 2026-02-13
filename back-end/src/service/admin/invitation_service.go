@@ -6,8 +6,9 @@ import (
 	"strings"
 
 	"github.com/proxima-labs/wedding-invitation-back-end/src/model"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/service/shared"
+	"github.com/proxima-labs/wedding-invitation-back-end/src/query"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
+	"github.com/proxima-labs/wedding-invitation-back-end/src/service/shared"
 )
 
 type InvitationService struct {
@@ -43,9 +44,11 @@ func (s *InvitationService) Create(ctx context.Context, input repository.Invitat
 	input.Slug = slug
 	return s.Repo.Create(ctx, input)
 }
+
 func (s *InvitationService) GetByID(ctx context.Context, id string) (model.Invitation, bool, error) {
 	return s.Repo.GetByID(ctx, id)
 }
+
 func (s *InvitationService) Update(ctx context.Context, id string, input repository.InvitationUpdateInput) error {
 	if input.Slug == "" {
 		current, ok, err := s.Repo.GetByID(ctx, id)
@@ -82,12 +85,28 @@ func (s *InvitationService) Update(ctx context.Context, id string, input reposit
 	domain := buildCustomerDomain(input.Slug, s.BaseDomain)
 	return s.CustomerRepo.UpdateDomainIfEmpty(ctx, input.CustomerID, domain)
 }
+
 func (s *InvitationService) Delete(ctx context.Context, id string) error {
 	return s.Repo.Delete(ctx, id)
 }
-func (s *InvitationService) List(ctx context.Context, filters repository.InvitationListFilters) ([]model.Invitation, error) {
-	return s.Repo.List(ctx, filters)
+
+func (s *InvitationService) NormalizeListFilters(filters query.InvitationListFilters) query.InvitationListFilters {
+	if filters.Limit <= 0 {
+		filters.Limit = 20
+	}
+	if filters.Limit > 100 {
+		filters.Limit = 100
+	}
+	if filters.Offset < 0 {
+		filters.Offset = 0
+	}
+	return filters
 }
+
+func (s *InvitationService) List(ctx context.Context, filters query.InvitationListFilters) ([]model.Invitation, error) {
+	return s.Repo.List(ctx, s.NormalizeListFilters(filters))
+}
+
 func buildCustomerDomain(slug string, baseDomain string) string {
 	slug = strings.TrimSpace(slug)
 	baseDomain = strings.TrimSpace(baseDomain)
@@ -99,6 +118,7 @@ func buildCustomerDomain(slug string, baseDomain string) string {
 	}
 	return slug + "." + baseDomain
 }
+
 func isCustomerPaid(status string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(status))
 	switch normalized {
@@ -108,6 +128,7 @@ func isCustomerPaid(status string) bool {
 		return false
 	}
 }
+
 func (s *InvitationService) ensureSlug(ctx context.Context, customerID, slug, title string) (string, error) {
 	base := shared.Slugify(slug)
 	if base == "" {
@@ -117,6 +138,7 @@ func (s *InvitationService) ensureSlug(ctx context.Context, customerID, slug, ti
 		return s.Repo.ExistsByCustomerAndSlug(ctx, customerID, candidate)
 	})
 }
-func (s *InvitationService) ListWithCustomers(ctx context.Context, filters repository.InvitationListFilters) ([]repository.InvitationWithCustomer, error) {
-	return s.Repo.ListWithCustomer(ctx, filters)
+
+func (s *InvitationService) ListWithCustomers(ctx context.Context, filters query.InvitationListFilters) ([]repository.InvitationWithCustomer, error) {
+	return s.Repo.ListWithCustomer(ctx, s.NormalizeListFilters(filters))
 }

@@ -327,7 +327,8 @@ export default function GuestInvitationPage() {
     },
     weddingDate: formatDate(data.event.akadDate),
     targetDate: data.event.akadDate ? new Date(`${data.event.akadDate}T${data.event.akadTime || "10:00"}:00`) : new Date("2025-03-15T10:00:00"),
-    guestName: guest || "Bapak/Ibu/Saudara/i",
+    guestLabel: "Bapak/Ibu/Saudara/i",
+    guestName: guest,
     events: [
       {
         title: "Akad Nikah / Pemberkatan",
@@ -387,6 +388,7 @@ export default function GuestInvitationPage() {
         brideName={weddingData.bride.name}
         groomName={weddingData.groom.name}
         weddingDate={weddingData.weddingDate}
+        guestLabel={weddingData.guestLabel}
         guestName={weddingData.guestName}
       />
 
@@ -400,7 +402,7 @@ export default function GuestInvitationPage() {
 
       <StorySection stories={weddingData.stories} />
 
-      <RsvpSection guestName={weddingData.guestName} />
+      <RsvpSection guestName={weddingData.guestName || weddingData.guestLabel} />
 
       <WishesSection wishes={weddingData.wishes} />
 

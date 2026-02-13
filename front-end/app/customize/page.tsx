@@ -5,10 +5,12 @@ import {
   ChevronLeft,
   Copy,
   CreditCard,
+  Download,
   ExternalLink,
   Eye,
   Heart,
   ImageIcon,
+  LogOut,
   MapPin,
   Monitor,
   Music,
@@ -16,7 +18,8 @@ import {
   Smartphone,
   Users,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CustomizeHeader } from "@/components/customize/customize-header";
 import { CoupleForm } from "@/components/customize/forms/couple-form";
 import { EventForm } from "@/components/customize/forms/event-form";
@@ -28,13 +31,18 @@ import { StoryForm } from "@/components/customize/forms/story-form";
 import { ThemeForm } from "@/components/customize/forms/theme-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { type ThemeKey, themes, type WeddingData } from "@/lib/wedding-context";
-import { getCustomerSession, type CustomerSession } from "@/lib/session";
+import {
+  clearCustomerSession,
+  getCustomerSession,
+  setCustomerSession,
+  type CustomerSession,
+} from "@/lib/session";
 import { getInvitationErrorMessage, useUpdateInvitation } from "@/lib/hooks/use-update-invitation";
+import { apiClient } from "@/lib/http";
 
 const sections = [
   { id: "couple", label: "Data Pengantin", icon: Users },
@@ -48,6 +56,89 @@ const sections = [
 ];
 
 const STORAGE_KEY = "wedding-invitation-data";
+
+type InvitationResponse = {
+  slug?: string | null;
+  content?: unknown;
+  theme_key?: string | null;
+  is_published?: boolean | null;
+};
+
+function parseInvitationContent(raw: unknown): Partial<WeddingData> | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw) as Partial<WeddingData>;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof raw === "object") {
+    return raw as Partial<WeddingData>;
+  }
+  return null;
+}
+
+
+function slugifySegment(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function buildOwnerFromCouple(groomName: string, brideName: string) {
+  const groom = slugifySegment(groomName);
+  const bride = slugifySegment(brideName);
+  if (groom && bride) return `${groom}-${bride}`;
+  return groom || bride;
+}
+
+function buildGuestSlug(guestName: string) {
+  return slugifySegment(guestName);
+}
+
+function normalizeWhatsAppNumber(raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
+  if (digits.startsWith("62")) return digits;
+  return digits;
+}
+
+function parseGuestRows(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line
+        .split(/[;,\t|]/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      if (parts.length === 0) return null;
+      if (parts.length === 1) {
+        return { name: parts[0], phone: "" };
+      }
+
+      return {
+        name: parts[0],
+        phone: normalizeWhatsAppNumber(parts[1]),
+      };
+    })
+    .filter((item): item is { name: string; phone: string } => Boolean(item));
+}
+
+function buildBroadcastMessage(template: string, name: string, link: string, pasangan: string) {
+  return template
+    .replaceAll("{{nama}}", name)
+    .replaceAll("{{link}}", link)
+    .replaceAll("{{pasangan}}", pasangan);
+}
 
 const defaultData: WeddingData = {
   couple: {
@@ -99,46 +190,49 @@ const defaultData: WeddingData = {
 };
 
 export default function CustomizePage() {
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState("couple");
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<WeddingData>(defaultData);
   const [viewMode, setViewMode] = useState<"mobile" | "desktop">("mobile");
   const [showPreview, setShowPreview] = useState(false);
   const [showSharePanel, setShowSharePanel] = useState(false);
-  const [shareMode, setShareMode] = useState<"demo" | "subdomain" | "custom">("demo");
-  const [shareOwner, setShareOwner] = useState("");
-  const [shareSlug, setShareSlug] = useState("");
-  const [copied, setCopied] = useState(false);
+const [copiedBulk, setCopiedBulk] = useState(false);
+const [copiedBulkMessage, setCopiedBulkMessage] = useState(false);
+const [bulkGuestInput, setBulkGuestInput] = useState("");
+const [messageTemplate, setMessageTemplate] = useState(
+  "Halo {{nama}},\nKami mengundang Anda untuk hadir di acara pernikahan {{pasangan}}.\n\nBuka undangan: {{link}}\n\nTerima kasih."
+);
   const [isHydrated, setIsHydrated] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   const [origin, setOrigin] = useState("");
   const [session, setSession] = useState<CustomerSession | null>(null);
+  const [invitationSlug, setInvitationSlug] = useState("");
+  const derivedOwner = useMemo(
+    () => buildOwnerFromCouple(formData.couple.groomName || "", formData.couple.brideName || ""),
+    [formData.couple.groomName, formData.couple.brideName]
+  );
+  const coupleLabel = useMemo(() => {
+    const groom = formData.couple.groomName?.trim() || "";
+    const bride = formData.couple.brideName?.trim() || "";
+    return [groom, bride].filter(Boolean).join(" & ") || "Kami";
+  }, [formData.couple.groomName, formData.couple.brideName]);
+  const parsedGuestRows = useMemo(() => parseGuestRows(bulkGuestInput), [bulkGuestInput]);
+  const previewGuest = useMemo(() => {
+    const firstGuest = parsedGuestRows[0]?.name || "";
+    return buildGuestSlug(firstGuest);
+  }, [parsedGuestRows]);
   const previewUrl = useMemo(() => {
-    if (session?.invitationId) {
-      return `/preview?id=${session.invitationId}`;
-    }
-    return "/preview";
-  }, [session]);
+    if (!session?.invitationId) return "/preview";
+    const params = new URLSearchParams();
+    params.set("id", session.invitationId);
+    if (previewGuest) params.set("guest", previewGuest);
+    return "/preview?" + params.toString();
+  }, [previewGuest, session]);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [publishError, setPublishError] = useState<string | null>(null);
-  const [isPublished, setIsPublished] = useState(false);
   const updateInvitationMutation = useUpdateInvitation();
-  const iframeRef = useRef(null);
-  const mobileIframeRef = useRef(null);
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setFormData({ ...defaultData, ...parsed });
-      } catch {
-        // ignore parse errors
-      }
-    }
-    setIsHydrated(true);
-  }, []);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const mobileIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -148,29 +242,101 @@ export default function CustomizePage() {
 
   useEffect(() => {
     const stored = getCustomerSession();
-    if (stored) {
-      setSession(stored);
-      setShareOwner((prev) => prev || stored.slug);
-      setShareSlug((prev) => prev || stored.slug);
+    if (!stored) {
+      setIsHydrated(true);
+      return;
     }
+
+    setSession(stored);
+
+    let isActive = true;
+    apiClient
+      .get<InvitationResponse>("/api/v1/customer/invitations/" + stored.invitationId)
+      .then((response) => {
+        if (!isActive) return;
+
+        const content = parseInvitationContent(response.data?.content);
+        const themeKey = response.data?.theme_key?.trim();
+        const mergedTheme = themeKey
+          ? {
+              ...(content?.theme || {}),
+              theme: themeKey,
+            }
+          : content?.theme;
+
+        const merged = {
+          ...defaultData,
+          ...(content || {}),
+          ...(mergedTheme ? { theme: { ...defaultData.theme, ...mergedTheme } } : null),
+        } as WeddingData;
+
+        setFormData(merged);
+
+        const slug = (response.data?.slug || "").trim();
+        if (slug) setInvitationSlug(slug);
+
+        const contentMap = (content && typeof content === "object")
+          ? (content as Record<string, unknown>)
+          : null;
+        const broadcastRaw = contentMap?.broadcast;
+        const broadcast = broadcastRaw && typeof broadcastRaw === "object"
+          ? (broadcastRaw as Record<string, unknown>)
+          : null;
+
+        const templateRaw = typeof broadcast?.template === "string" ? broadcast.template : "";
+        if (templateRaw.trim()) {
+          setMessageTemplate(templateRaw);
+        }
+
+        const guestsRaw = Array.isArray(broadcast?.guests) ? broadcast.guests : [];
+        const guestLines = guestsRaw
+          .map((item) => {
+            if (!item || typeof item !== "object") return "";
+            const guest = item as Record<string, unknown>;
+            const name = typeof guest.name === "string" ? guest.name.trim() : "";
+            const phone = typeof guest.phone === "string" ? guest.phone.trim() : "";
+            if (!name) return "";
+            return phone ? `${name}, ${phone}` : name;
+          })
+          .filter(Boolean);
+        if (guestLines.length > 0) {
+          setBulkGuestInput(guestLines.join("\n"));
+        }
+      })
+      .catch(() => {
+        if (!isActive) return;
+      })
+      .finally(() => {
+        if (isActive) setIsHydrated(true);
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
-  // Save to localStorage when data changes (debounced preview refresh)
   useEffect(() => {
-    if (isHydrated) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
-    }
+    if (!isHydrated) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
   }, [formData, isHydrated]);
 
-  // Refresh preview when theme changes
+  const postPreviewUpdate = useCallback((target: HTMLIFrameElement | null) => {
+    if (!target?.contentWindow) return;
+    target.contentWindow.postMessage(
+      { type: "WEDDING_PREVIEW_UPDATE", payload: formData },
+      window.location.origin
+    );
+  }, [formData]);
+
   useEffect(() => {
-    if (isHydrated) {
-      const timer = setTimeout(() => {
-        setPreviewKey((k) => k + 1);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [formData.theme.theme, isHydrated]);
+    if (!isHydrated) return;
+    const timer = setTimeout(() => {
+      postPreviewUpdate(iframeRef.current);
+      postPreviewUpdate(mobileIframeRef.current);
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [formData, isHydrated, postPreviewUpdate, showPreview]);
 
   const handleSave = async () => {
     setSaveError(null);
@@ -184,17 +350,34 @@ export default function CustomizePage() {
     }
 
     const meta = buildInvitationMeta();
+    const slugToPersist = generatedOwner || invitationSlug.trim();
+    const contentPayload = {
+      ...formData,
+      broadcast: {
+        template: messageTemplate,
+        guests: parsedGuestRows.map((item) => ({ name: item.name, phone: item.phone })),
+      },
+    };
 
     try {
       await updateInvitationMutation.mutateAsync({
         invitationId: session.invitationId,
         customerId: session.customerId,
+        slug: slugToPersist,
         title: meta.title,
         eventDate: meta.eventDate,
         themeKey: meta.themeKey,
-        isPublished,
-        content: formData as unknown as Record<string, unknown>,
+        isPublished: false,
+        content: contentPayload as unknown as Record<string, unknown>,
       });
+
+      if (slugToPersist) {
+        setInvitationSlug(slugToPersist);
+        const nextSession = { ...session, slug: slugToPersist };
+        setSession(nextSession);
+        setCustomerSession(nextSession);
+      }
+
       setPreviewKey((k) => k + 1);
     } catch (err) {
       setSaveError(getInvitationErrorMessage(err));
@@ -202,28 +385,9 @@ export default function CustomizePage() {
       setIsSaving(false);
     }
   };
-
-  const handlePublish = async () => {
-    setPublishError(null);
-    if (!session) {
-      setPublishError("Session customer tidak ditemukan. Silakan ulangi onboarding.");
-      return;
-    }
-    const meta = buildInvitationMeta();
-    try {
-      await updateInvitationMutation.mutateAsync({
-        invitationId: session.invitationId,
-        customerId: session.customerId,
-        title: meta.title,
-        eventDate: meta.eventDate,
-        themeKey: meta.themeKey,
-        isPublished: true,
-        content: formData as unknown as Record<string, unknown>,
-      });
-      setIsPublished(true);
-    } catch (err) {
-      setPublishError(getInvitationErrorMessage(err));
-    }
+  const handleLogout = () => {
+    clearCustomerSession();
+    router.push("/login");
   };
 
   const updateFormData = <K extends keyof WeddingData>(
@@ -245,45 +409,117 @@ export default function CustomizePage() {
       themeKey: formData.theme.theme || "elegant",
     };
   };
-
-  const baseDomain = (process.env.NEXT_PUBLIC_BASE_DOMAIN || "").trim();
   const demoBase = (process.env.NEXT_PUBLIC_DEMO_BASE_URL || origin).replace(/\/$/, "");
-  const cleanedOwner = shareOwner.trim();
-  const cleanedSlug = shareSlug.trim();
+  const generatedOwner = derivedOwner.trim();
+  const cleanedOwner = generatedOwner || invitationSlug.trim();
 
-  const shareLink = (() => {
-    if (!cleanedOwner || !cleanedSlug) {
+  const buildShareLink = useCallback((owner: string, guest: string) => {
+    if (!owner || !guest || !demoBase) {
       return "";
     }
-    if (shareMode === "demo") {
-      if (!demoBase) {
-        return "";
-      }
-      return `${demoBase}/api/v1/public/${cleanedOwner}/invitation/${cleanedSlug}`;
-    }
-    if (shareMode === "subdomain") {
-      if (!baseDomain) {
-        return "";
-      }
-      return `https://${cleanedOwner}.${baseDomain}/api/v1/public/invitation/${cleanedSlug}`;
-    }
-    return `https://${cleanedOwner}/api/v1/public/invitation/${cleanedSlug}`;
-  })();
+    return `${demoBase}/${owner}/invitations/${guest}`;
+  }, [demoBase]);
 
-  const ownerLabel = shareMode === "custom" ? "Custom domain" : "Owner / Subdomain";
-  const ownerPlaceholder = shareMode === "custom" ? "undangan-andi.com" : "andi";
+  const bulkGuestRows = useMemo(() => {
+    if (!cleanedOwner) return [];
+    const counters = new Map<string, number>();
 
-  const handleCopy = async () => {
-    if (!shareLink || typeof navigator === "undefined") {
-      return;
-    }
+    return parsedGuestRows
+      .map((entry) => {
+        const baseSlug = buildGuestSlug(entry.name);
+        if (!baseSlug) return null;
+
+        const count = (counters.get(baseSlug) || 0) + 1;
+        counters.set(baseSlug, count);
+        const finalSlug = count === 1 ? baseSlug : `${baseSlug}-${count}`;
+        const link = buildShareLink(cleanedOwner, finalSlug);
+        const message = buildBroadcastMessage(messageTemplate, entry.name, link, coupleLabel);
+        const waUrl = entry.phone ? `https://wa.me/${entry.phone}?text=${encodeURIComponent(message)}` : "";
+
+        return {
+          name: entry.name,
+          phone: entry.phone,
+          guestSlug: finalSlug,
+          link,
+          message,
+          waUrl,
+        };
+      })
+      .filter((row): row is { name: string; phone: string; guestSlug: string; link: string; message: string; waUrl: string } => Boolean(row));
+  }, [buildShareLink, cleanedOwner, coupleLabel, messageTemplate, parsedGuestRows]);
+
+  const handleCopyBulk = async () => {
+    if (typeof navigator === "undefined" || bulkGuestRows.length === 0) return;
+
+    const lines = bulkGuestRows
+      .filter((row) => row.link)
+      .map((row) => `${row.name}${row.phone ? ` (${row.phone})` : ""}: ${row.link}`);
+
+    if (lines.length === 0) return;
+
     try {
-      await navigator.clipboard.writeText(shareLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopiedBulk(true);
+      setTimeout(() => setCopiedBulk(false), 1500);
     } catch {
       // ignore clipboard errors
     }
+  };
+
+  const handleCopyBulkMessages = async () => {
+    if (typeof navigator === "undefined" || bulkGuestRows.length === 0) return;
+
+    const lines = bulkGuestRows
+      .filter((row) => row.message)
+      .map((row) => `${row.phone || "-"} | ${row.name}\n${row.message}`);
+
+    if (lines.length === 0) return;
+
+    try {
+      await navigator.clipboard.writeText(lines.join("\n\n"));
+      setCopiedBulkMessage(true);
+      setTimeout(() => setCopiedBulkMessage(false), 1500);
+    } catch {
+      // ignore clipboard errors
+    }
+  };
+
+  const handleCopySingleMessage = async (message: string) => {
+    if (typeof navigator === "undefined" || !message) return;
+
+    try {
+      await navigator.clipboard.writeText(message);
+    } catch {
+      // ignore clipboard errors
+    }
+  };
+
+  const handleDownloadCsv = () => {
+    if (typeof window === "undefined" || bulkGuestRows.length === 0) return;
+
+    const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const csvRows = [
+      ["Nama Tamu", "No WA", "Slug", "Link", "Pesan", "WA URL"],
+      ...bulkGuestRows
+        .filter((row) => row.link)
+        .map((row) => [row.name, row.phone, row.guestSlug, row.link, row.message, row.waUrl]),
+    ];
+
+    if (csvRows.length <= 1) return;
+
+    const csv = csvRows
+      .map((row) => row.map((value) => escapeCsv(value)).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateCode = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `guest-broadcast-${dateCode}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const renderForm = () => {
@@ -366,13 +602,14 @@ export default function CustomizePage() {
       <CustomizeHeader
         onSave={handleSave}
         onShare={() => setShowSharePanel((prev) => !prev)}
+        onLogout={handleLogout}
         isSaving={isSaving}
         isShareOpen={showSharePanel}
       />
 
       <div className="flex">
         {/* Sidebar - Desktop */}
-        <aside className="hidden lg:block w-64 bg-card border-r border-border min-h-[calc(100vh-65px)] sticky top-[65px]">
+        <aside className="hidden lg:flex lg:w-64 lg:flex-col bg-card border-r border-border min-h-[calc(100vh-65px)] sticky top-[65px]">
           <div className="p-4 border-b border-border">
             <h2 className="font-serif text-xl font-bold text-foreground">Kustomisasi</h2>
             <p className="text-sm text-muted-foreground mt-1">Edit undangan Anda</p>
@@ -399,18 +636,19 @@ export default function CustomizePage() {
             </ul>
           </nav>
 
-          {/* Current Theme Info */}
-          <div className="p-4 border-t border-border mt-auto">
-            <div className="text-xs text-muted-foreground mb-1">Tema Aktif</div>
-            <div className="font-medium text-foreground">{currentTheme.name}</div>
+          <div className="border-t border-border p-4 space-y-3">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Tema Aktif</div>
+              <div className="font-medium text-foreground">{currentTheme.name}</div>
+            </div>
           </div>
         </aside>
 
         {/* Main Content */}
         <main className="flex-1">
           {/* Mobile Section Tabs */}
-          <div className="lg:hidden sticky top-0 z-10 bg-card border-b border-border overflow-hidden">
-            <div className="flex w-max gap-2 px-4 py-2 overflow-x-auto overscroll-x-contain">
+          <div className="lg:hidden sticky top-0 z-10 bg-card border-b border-border">
+            <div className="flex max-w-xs gap-2 px-4 py-2 overflow-x-auto overscroll-x-contain md:max-w-full">
               {sections.map((tab) => (
                 <button
                   key={tab.id}
@@ -429,102 +667,103 @@ export default function CustomizePage() {
               ))}
             </div>
           </div>
-
           {showSharePanel && (
             <div className="p-4 sm:p-6 border-b border-border bg-muted/20">
               <Card className="shadow-none">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-base">Link Undangan</CardTitle>
                   <CardDescription>
-                    Atur format link untuk demo (path), subdomain, atau custom domain.
+                    Kelola daftar tamu dan generate link undangan massal.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-muted-foreground">Status</p>
-                      <p className="text-sm font-medium">{isPublished ? "Published" : "Draft"}</p>
-                    </div>
-                    <Button type="button" size="sm" onClick={handlePublish} disabled={updateInvitationMutation.isPending}>
-                      {updateInvitationMutation.isPending ? "Memproses..." : "Publikasikan"}
-                    </Button>
-                  </div>
-                  {publishError && (
-                    <p className="text-xs text-destructive">{publishError}</p>
-                  )}
-                  <div className="grid gap-3">
-                    <Label>Mode</Label>
-                    <RadioGroup
-                      className="grid gap-2 sm:grid-cols-3"
-                      value={shareMode}
-                      onValueChange={(value) => setShareMode(value as "demo" | "subdomain" | "custom")}
-                    >
-                      <div className="flex items-center gap-2 rounded-md border border-border px-3 py-2">
-                        <RadioGroupItem id="share-demo" value="demo" />
-                        <Label htmlFor="share-demo">Demo (path)</Label>
-                      </div>
-                      <div className="flex items-center gap-2 rounded-md border border-border px-3 py-2">
-                        <RadioGroupItem id="share-subdomain" value="subdomain" />
-                        <Label htmlFor="share-subdomain">Subdomain</Label>
-                      </div>
-                      <div className="flex items-center gap-2 rounded-md border border-border px-3 py-2">
-                        <RadioGroupItem id="share-custom" value="custom" />
-                        <Label htmlFor="share-custom">Custom domain</Label>
-                      </div>
-                    </RadioGroup>
+                  <div className="grid gap-1 rounded-lg border border-border px-3 py-2">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Owner Link Otomatis</p>
+                    <p className="text-sm font-medium text-foreground">{cleanedOwner || "(isi nama panggilan mempelai dulu)"}</p>
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="share-owner">{ownerLabel}</Label>
-                    <Input
-                      id="share-owner"
-                      value={shareOwner}
-                      onChange={(event) => setShareOwner(event.target.value)}
-                      placeholder={ownerPlaceholder}
+                    <Label htmlFor="share-guest-bulk">Daftar tamu + WA (bulk)</Label>
+                    <Textarea
+                      id="share-guest-bulk"
+                      value={bulkGuestInput}
+                      onChange={(event) => setBulkGuestInput(event.target.value)}
+                      placeholder={"Format per baris: Nama, 628xxxx\nContoh: Bapak Ujang, 628123456789"}
+                      className="min-h-32"
                     />
                     <p className="text-xs text-muted-foreground">
-                      {shareMode === "demo"
-                        ? "Contoh demo: andi (link jadi /andi/invitation/...)"
-                        : shareMode === "subdomain"
-                          ? baseDomain
-                            ? `Akan dipakai sebagai ${ownerPlaceholder}.${baseDomain}`
-                            : "Set NEXT_PUBLIC_BASE_DOMAIN untuk generate link subdomain."
-                          : "Isi domain lengkap, contoh: undangan-andi.com"}
+                      Satu baris satu tamu. Format: nama, nomor WA. Nomor opsional, tapi dibutuhkan untuk buka WhatsApp otomatis.
                     </p>
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="share-slug">Slug undangan</Label>
-                    <Input
-                      id="share-slug"
-                      value={shareSlug}
-                      onChange={(event) => setShareSlug(event.target.value)}
-                      placeholder="andi-sarah"
+                    <Label htmlFor="message-template">Template ucapan</Label>
+                    <Textarea
+                      id="message-template"
+                      value={messageTemplate}
+                      onChange={(event) => setMessageTemplate(event.target.value)}
+                      className="min-h-32"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Placeholder: {"{{nama}}"}, {"{{link}}"}, {"{{pasangan}}"}.
+                    </p>
                   </div>
 
-                  <div className="grid gap-2">
-                    <Label>Link undangan</Label>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Input value={shareLink} readOnly placeholder="Isi owner & slug terlebih dulu" />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCopy}
-                        disabled={!shareLink}
-                        className="sm:w-[140px]"
-                      >
-                        <Copy className="w-4 h-4 mr-2" />
-                        {copied ? "Tersalin" : "Copy"}
-                      </Button>
+                  <div className="grid gap-2 rounded-lg border border-border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium">Generator Broadcast</p>
+                        <p className="text-xs text-muted-foreground">
+                          {bulkGuestRows.length} tamu siap dikirimkan.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={handleCopyBulk} disabled={bulkGuestRows.length === 0}>
+                          <Copy className="w-4 h-4 mr-2" />
+                          {copiedBulk ? "Link tersalin" : "Copy link"}
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={handleCopyBulkMessages} disabled={bulkGuestRows.length === 0}>
+                          <Copy className="w-4 h-4 mr-2" />
+                          {copiedBulkMessage ? "Pesan tersalin" : "Copy pesan"}
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={handleDownloadCsv} disabled={bulkGuestRows.length === 0}>
+                          <Download className="w-4 h-4 mr-2" />
+                          Download CSV
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {shareMode === "demo"
-                        ? "Pakai link ini untuk demo di fly.dev atau localhost."
-                        : shareMode === "subdomain"
-                          ? "Pastikan DNS wildcard sudah diarahkan ke server."
-                          : "Pastikan domain customer sudah mengarah ke server."}
-                    </p>
+                    <div className="max-h-64 overflow-auto rounded-md border border-border">
+                      {bulkGuestRows.length === 0 ? (
+                        <p className="px-3 py-2 text-xs text-muted-foreground">Belum ada daftar tamu.</p>
+                      ) : (
+                        <ul className="divide-y divide-border text-xs">
+                          {bulkGuestRows.slice(0, 200).map((row) => (
+                            <li key={row.guestSlug} className="px-3 py-2 space-y-1">
+                              <p className="font-medium text-foreground">{row.name}{row.phone ? ` (${row.phone})` : ""}</p>
+                              <p className="truncate text-muted-foreground">{row.link}</p>
+                              <p className="line-clamp-2 text-muted-foreground">{row.message}</p>
+                              <div className="flex flex-wrap gap-2">
+                                <Button type="button" size="sm" variant="outline" onClick={() => handleCopySingleMessage(row.message)}>
+                                  Copy pesan
+                                </Button>
+                                {row.waUrl && (
+                                  <Button type="button" size="sm" variant="outline" asChild>
+                                    <a href={row.waUrl} target="_blank" rel="noopener noreferrer">
+                                      Buka WA
+                                    </a>
+                                  </Button>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    {bulkGuestRows.length > 200 && (
+                      <p className="text-xs text-muted-foreground">
+                        Menampilkan 200 pertama dari {bulkGuestRows.length} tamu.
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -554,12 +793,13 @@ export default function CustomizePage() {
             </div>
 
             {/* Preview Panel - Desktop */}
-            <div className="hidden lg:block flex-1 border-l border-border bg-muted/30 h-dvh sticky top-[65px]">
+            <div className="hidden lg:flex flex-1 flex-col border-l border-border bg-muted/30 h-dvh sticky top-[65px]">
               {/* Preview Header */}
-              <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+              <div className="flex items-center justify-between p-4 border-b border-border bg-card shrink-0">
                 <div className="flex items-center gap-2">
                   <Eye className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">Preview</span>
+                  <span className="text-xs text-muted-foreground">Realtime preview</span>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
                     {currentTheme.name}
                   </span>
@@ -603,21 +843,23 @@ export default function CustomizePage() {
               </div>
 
               {/* Preview Content */}
-              <div className="px-6 flex items-start justify-center h-dvh overflow-auto">
-                <div
-                  className={cn(
-                    "bg-background rounded-2xl shadow-lg overflow-hidden transition-all duration-300",
-                    viewMode === "mobile"
-                      ? "w-[375px] h-[667px]"
-                      : "w-full max-w-4xl h-[600px]"
-                  )}
-                >
-                  <iframe
-                    key={`desktop-${previewKey}`}
-                    src={previewUrl}
-                    className="w-full h-full border-0"
-                    title="Wedding invitation preview"
-                  />
+              <div className="flex-1 min-h-0 overflow-auto px-6">
+                <div className="flex h-full justify-center">
+                  <div
+                    className={cn(
+                      "bg-background rounded-2xl shadow-lg overflow-hidden transition-all duration-300 w-full h-full",
+                      viewMode === "mobile" ? "max-w-[420px]" : "max-w-4xl"
+                    )}
+                  >
+                    <iframe
+                      key={`desktop-${previewKey}`}
+                      src={previewUrl}
+                      className="w-full h-full border-0"
+                      title="Wedding invitation preview"
+                      ref={iframeRef}
+                      onLoad={() => postPreviewUpdate(iframeRef.current)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -649,6 +891,8 @@ export default function CustomizePage() {
             src={previewUrl}
             className="w-full h-[calc(100vh-65px)] border-0"
             title="Wedding invitation preview"
+            ref={mobileIframeRef}
+            onLoad={() => postPreviewUpdate(mobileIframeRef.current)}
           />
         </div>
       )}

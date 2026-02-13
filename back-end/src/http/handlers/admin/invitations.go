@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers/validation"
+	"github.com/proxima-labs/wedding-invitation-back-end/src/query"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
 	adminsvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/admin"
 )
@@ -64,7 +65,7 @@ type invitationListResponse struct {
 }
 
 func (h *InvitationHandler) ListInvitations(c *gin.Context) {
-	filters := repository.InvitationListFilters{}
+	filters := query.InvitationListFilters{}
 	filters.CustomerID = c.Query("customer_id")
 	filters.Query = c.Query("q")
 	filters.Status = c.Query("status")
@@ -106,18 +107,9 @@ func (h *InvitationHandler) ListInvitations(c *gin.Context) {
 		filters.Offset = offset
 	}
 
-	if filters.Limit <= 0 {
-		filters.Limit = 20
-	}
-	if filters.Limit > 100 {
-		filters.Limit = 100
-	}
-	if filters.Offset < 0 {
-		filters.Offset = 0
-	}
+	filters = h.Service.NormalizeListFilters(filters)
 
 	items, err := h.Service.ListWithCustomers(c.Request.Context(), filters)
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list invitations"})
 		return

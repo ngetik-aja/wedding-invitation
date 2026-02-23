@@ -1,16 +1,16 @@
+import { ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles } from "lucide-react";
 
 export function Hero() {
   return (
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-4xl mx-auto text-center">
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm mb-8">
+        {/*<div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm mb-8">
           <Sparkles className="w-4 h-4" />
           <span>Lebih dari 10.000+ undangan telah dibuat</span>
-        </div>
+        </div>*/}
 
         {/* Heading */}
         <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6 text-balance">
@@ -36,7 +36,7 @@ export function Hero() {
         </div>
 
         {/* Trust Indicators */}
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-sm text-muted-foreground">
+        {/*<div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <div className="flex -space-x-2">
               {[1, 2, 3, 4].map((i) => (
@@ -58,7 +58,7 @@ export function Hero() {
             <span className="font-semibold text-foreground">24/7</span>
             <span>Customer support</span>
           </div>
-        </div>
+        </div>*/}
       </div>
     </section>
   );

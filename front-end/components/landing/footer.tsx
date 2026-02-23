@@ -75,7 +75,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="https://wa.me/+6285754296841" className="text-muted-foreground hover:text-foreground transition-colors">
                   Hubungi Kami
                 </Link>
               </li>

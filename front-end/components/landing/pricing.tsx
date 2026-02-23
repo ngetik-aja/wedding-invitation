@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Check, X } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { plans } from "@/lib/plans";
 
 export function Pricing() {
@@ -116,9 +116,9 @@ export function Pricing() {
         </div>
 
         {/* Money Back Guarantee */}
-        <p className="text-center text-sm text-muted-foreground mt-10">
+        {/*<p className="text-center text-sm text-muted-foreground mt-10">
           Garansi uang kembali 7 hari jika tidak puas. Tanpa pertanyaan.
-        </p>
+        </p>*/}
       </div>
     </section>
   );

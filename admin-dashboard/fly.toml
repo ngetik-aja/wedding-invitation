@@ -1,15 +1,13 @@
-# fly.toml app configuration file generated for dashboard-undangan-nikah-icy-smoke-2319 on 2026-02-09T11:32:38+08:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
+# fly.toml app configuration file
+# See https://fly.io/docs/reference/configuration/
 
-app = 'dashboard-undangan-nikah'
+app = 'dashboard-janjiakad'
 primary_region = 'sin'
 
 [build]
   [build.args]
-    NEXT_PUBLIC_PREVIEW_URL = "https://undangan-nikahan.fly.dev/preview"
-    NEXT_PUBLIC_API_BASE_URL = "https://undangan-nikahan-api.fly.dev"
+    NEXT_PUBLIC_PREVIEW_URL = "https://janjiakad.fly.dev/preview"
+    NEXT_PUBLIC_API_BASE_URL = "https://janjiakad-api.fly.dev"
 
 [http_service]
   internal_port = 3000

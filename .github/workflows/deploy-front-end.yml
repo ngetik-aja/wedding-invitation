@@ -23,8 +23,7 @@ jobs:
       - name: Deploy
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
         working-directory: front-end
         run: |
-          fly deploy -a undangan-nikah -c fly.toml \
-            --build-arg NEXT_PUBLIC_API_BASE_URL="$NEXT_PUBLIC_API_BASE_URL"
+          fly deploy -a janjiakad -c fly.toml \
+            --build-arg NEXT_PUBLIC_API_BASE_URL="https://janjiakad-api.fly.dev"

@@ -9,7 +9,7 @@ export function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <Link href="/landing" className="font-serif text-2xl font-bold text-foreground">
-              Nikahku
+              JanjiAkad
             </Link>
             <p className="mt-4 text-muted-foreground max-w-sm leading-relaxed">
               Platform undangan pernikahan digital terbaik di Indonesia. Buat undangan elegan dalam hitungan menit.
@@ -96,7 +96,7 @@ export function Footer() {
         {/* Bottom */}
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            2026 Nikahku. All rights reserved.
+            2026 JanjiAkad. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
             Made with love in Indonesia

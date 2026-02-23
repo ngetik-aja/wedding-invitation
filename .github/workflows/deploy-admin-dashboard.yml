@@ -23,10 +23,8 @@ jobs:
       - name: Deploy
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
-          NEXT_PUBLIC_PREVIEW_URL: ${{ secrets.NEXT_PUBLIC_PREVIEW_URL }}
         working-directory: admin-dashboard
         run: |
-          fly deploy -a dashboard-undangan-nikah -c fly.toml \
-            --build-arg NEXT_PUBLIC_API_BASE_URL="$NEXT_PUBLIC_API_BASE_URL" \
-            --build-arg NEXT_PUBLIC_PREVIEW_URL="$NEXT_PUBLIC_PREVIEW_URL"
+          fly deploy -a dashboard-janjiakad -c fly.toml \
+            --build-arg NEXT_PUBLIC_API_BASE_URL="https://janjiakad-api.fly.dev" \
+            --build-arg NEXT_PUBLIC_PREVIEW_URL="https://janjiakad.fly.dev/preview"

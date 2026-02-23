@@ -8,7 +8,7 @@ const _playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playf
 const _lato = Lato({ weight: ['300', '400', '700'], subsets: ["latin"], variable: '--font-lato' });
 
 export const metadata: Metadata = {
-  title: 'Wedding Invitation',
+  title: 'JanjiAkad | Undangan nikah premium favoritmu',
   description: 'You are invited to celebrate our special day',
   generator: 'v0.app',
   icons: {

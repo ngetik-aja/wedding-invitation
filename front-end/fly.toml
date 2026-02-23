@@ -1,14 +1,12 @@
-# fly.toml app configuration file generated for undangan-nikah-icy-bird-4160 on 2026-02-09T11:32:36+08:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
+# fly.toml app configuration file
+# See https://fly.io/docs/reference/configuration/
 
-app = 'undangan-nikah'
+app = 'janjiakad'
 primary_region = 'sin'
 
 [build]
   [build.args]
-    NEXT_PUBLIC_API_BASE_URL = "https://undangan-nikah.fly.dev"
+    NEXT_PUBLIC_API_BASE_URL = "https://janjiakad-api.fly.dev"
 
 [http_service]
   internal_port = 3000

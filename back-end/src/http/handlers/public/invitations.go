@@ -1,31 +1,32 @@
 package public
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	publicmw "github.com/proxima-labs/wedding-invitation-back-end/src/http/middleware/public"
-	customersvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
+	publicMiddleware "github.com/proxima-labs/wedding-invitation-back-end/src/http/middleware/public"
+	publicRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request/public"
 )
 
-type InvitationHandler struct {
-	Service *customersvc.InvitationService
-}
-
-func (h *InvitationHandler) GetInvitation(c *gin.Context) {
-	customer, ok := publicmw.GetCustomer(c)
+func GetInvitationHandler(c *gin.Context) {
+	tenant, ok := publicMiddleware.GetTenant(c)
 	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "customer missing"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant missing"})
 		return
 	}
 
-	slug := c.Param("slug")
-	if slug == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing invitation slug"})
+	req, err := publicRequest.NewInvitationSlugRequest(c)
+	if err != nil {
+		if errors.Is(err, publicRequest.ErrMissingSlug) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing invitation slug"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
 
-	content, ok, err := h.Service.GetPublishedContent(c.Request.Context(), customer.ID, slug)
+	content, ok, err := invitationSvc.GetPublishedContent(c.Request.Context(), tenant.ID, req.Slug)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load invitation"})
 		return

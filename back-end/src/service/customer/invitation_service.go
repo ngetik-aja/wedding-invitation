@@ -9,13 +9,13 @@ import (
 	"github.com/proxima-labs/wedding-invitation-back-end/src/model"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/query"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/service/shared"
 )
 
 type InvitationService struct {
 	Repo         *repository.InvitationRepository
 	CustomerRepo *repository.CustomerRepository
 	BaseDomain   string
+	Slugify      func(string) string
 }
 
 func (s *InvitationService) GetByID(ctx context.Context, id string) (model.Invitation, bool, error) {
@@ -31,7 +31,10 @@ func (s *InvitationService) Update(ctx context.Context, id string, input reposit
 		return fmt.Errorf("invitation not found")
 	}
 
-	slug := strings.TrimSpace(shared.Slugify(input.Slug))
+	slug := strings.TrimSpace(input.Slug)
+	if s.Slugify != nil {
+		slug = strings.TrimSpace(s.Slugify(input.Slug))
+	}
 	if slug == "" {
 		slug = strings.TrimSpace(current.Slug)
 	}
@@ -102,10 +105,6 @@ func (s *InvitationService) syncDomainWithSlug(ctx context.Context, customerID, 
 	}
 
 	newDomain := newSlug
-	if baseDomain != "" {
-		newDomain = newSlug + "." + baseDomain
-	}
-
 	return s.CustomerRepo.UpdateDomain(ctx, customerID, newDomain)
 }
 

@@ -4,13 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	adminmw "github.com/proxima-labs/wedding-invitation-back-end/src/http/middleware/admin"
-	adminsvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/admin"
+	adminMiddleware "github.com/proxima-labs/wedding-invitation-back-end/src/http/middleware/admin"
 )
-
-type UserHandler struct {
-	Service *adminsvc.UserService
-}
 
 type meResponse struct {
 	ID        string `json:"id"`
@@ -18,14 +13,18 @@ type meResponse struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func (h *UserHandler) Me(c *gin.Context) {
-	claims, ok := adminmw.Get(c)
+func MeHandler(c *gin.Context) {
+	if !ensureService(c, userService) {
+		return
+	}
+
+	claims, ok := adminMiddleware.Get(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	user, found, err := h.Service.GetByID(c.Request.Context(), claims.UserID)
+	user, found, err := userService.GetByID(c.Request.Context(), claims.UserID)
 	if err != nil || !found {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return

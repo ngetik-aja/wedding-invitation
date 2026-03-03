@@ -8,13 +8,14 @@ import (
 	"github.com/proxima-labs/wedding-invitation-back-end/src/model"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/query"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/service/shared"
 )
 
 type InvitationService struct {
-	Repo         *repository.InvitationRepository
-	CustomerRepo *repository.CustomerRepository
-	BaseDomain   string
+	Repo             *repository.InvitationRepository
+	CustomerRepo     *repository.CustomerRepository
+	BaseDomain       string
+	Slugify          func(string) string
+	EnsureUniqueSlug func(context.Context, string, func(context.Context, string) (bool, error)) (string, error)
 }
 
 var (
@@ -90,33 +91,13 @@ func (s *InvitationService) Delete(ctx context.Context, id string) error {
 	return s.Repo.Delete(ctx, id)
 }
 
-func (s *InvitationService) NormalizeListFilters(filters query.InvitationListFilters) query.InvitationListFilters {
-	if filters.Limit <= 0 {
-		filters.Limit = 20
-	}
-	if filters.Limit > 100 {
-		filters.Limit = 100
-	}
-	if filters.Offset < 0 {
-		filters.Offset = 0
-	}
-	return filters
-}
-
 func (s *InvitationService) List(ctx context.Context, filters query.InvitationListFilters) ([]model.Invitation, error) {
-	return s.Repo.List(ctx, s.NormalizeListFilters(filters))
+	return s.Repo.List(ctx, filters)
 }
 
 func buildCustomerDomain(slug string, baseDomain string) string {
-	slug = strings.TrimSpace(slug)
-	baseDomain = strings.TrimSpace(baseDomain)
-	if slug == "" {
-		return baseDomain
-	}
-	if baseDomain == "" {
-		return slug
-	}
-	return slug + "." + baseDomain
+	_ = baseDomain
+	return strings.TrimSpace(slug)
 }
 
 func isCustomerPaid(status string) bool {
@@ -130,15 +111,19 @@ func isCustomerPaid(status string) bool {
 }
 
 func (s *InvitationService) ensureSlug(ctx context.Context, customerID, slug, title string) (string, error) {
-	base := shared.Slugify(slug)
-	if base == "" {
-		base = shared.Slugify(title)
+	if s.Slugify == nil || s.EnsureUniqueSlug == nil {
+		return "", errors.New("slug helper not configured")
 	}
-	return shared.EnsureUniqueSlug(ctx, base, func(ctx context.Context, candidate string) (bool, error) {
+
+	base := s.Slugify(slug)
+	if base == "" {
+		base = s.Slugify(title)
+	}
+	return s.EnsureUniqueSlug(ctx, base, func(ctx context.Context, candidate string) (bool, error) {
 		return s.Repo.ExistsByCustomerAndSlug(ctx, customerID, candidate)
 	})
 }
 
 func (s *InvitationService) ListWithCustomers(ctx context.Context, filters query.InvitationListFilters) ([]repository.InvitationWithCustomer, error) {
-	return s.Repo.ListWithCustomer(ctx, s.NormalizeListFilters(filters))
+	return s.Repo.ListWithCustomer(ctx, filters)
 }

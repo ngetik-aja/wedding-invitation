@@ -1,4 +1,4 @@
-package validation
+package request
 
 import (
 	"net/http"

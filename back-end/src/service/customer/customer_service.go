@@ -12,7 +12,7 @@ type CustomerService struct {
 	Repo *repository.CustomerRepository
 }
 
-func (s *CustomerService) ResolveByHost(ctx context.Context, host string, baseDomain string) (model.Customer, bool, error) {
+func (s *CustomerService) ResolveByHost(ctx context.Context, host string) (model.Customer, bool, error) {
 	host = strings.TrimSpace(host)
 	if host == "" {
 		return model.Customer{}, false, nil
@@ -24,14 +24,6 @@ func (s *CustomerService) ResolveByHost(ctx context.Context, host string, baseDo
 	customer, ok, err := s.Repo.FindByDomain(ctx, host)
 	if err != nil || ok {
 		return customer, ok, err
-	}
-
-	baseDomain = strings.TrimSpace(baseDomain)
-	if baseDomain != "" && strings.HasSuffix(host, "."+baseDomain) {
-		subdomain := strings.TrimSuffix(host, "."+baseDomain)
-		if subdomain != "" {
-			return s.Repo.FindByDomain(ctx, subdomain)
-		}
 	}
 
 	return model.Customer{}, false, nil

@@ -8,6 +8,8 @@ type Registry struct {
 	User       *UserRepository
 	Plan       *PlanRepository
 	Payment    *PaymentRepository
+	Rsvp       *RsvpRepository
+	Wish       *WishRepository
 }
 
 func NewRegistry(db *gorm.DB) Registry {
@@ -17,5 +19,7 @@ func NewRegistry(db *gorm.DB) Registry {
 		User:       &UserRepository{DB: db},
 		Plan:       &PlanRepository{DB: db},
 		Payment:    &PaymentRepository{DB: db},
+		Rsvp:       &RsvpRepository{DB: db},
+		Wish:       &WishRepository{DB: db},
 	}
 }

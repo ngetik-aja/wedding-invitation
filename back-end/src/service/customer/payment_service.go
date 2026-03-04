@@ -2,6 +2,8 @@ package customer
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -50,6 +52,21 @@ type PaymentProgressResult struct {
 	RedirectURL     string
 }
 
+type MidtransWebhookInput struct {
+	OrderID           string
+	TransactionStatus string
+	FraudStatus       string
+	StatusCode        string
+	GrossAmount       string
+	SignatureKey      string
+}
+
+type MidtransWebhookResult struct {
+	PaymentID string
+	Status    string
+	PaidAt    *time.Time
+}
+
 var (
 	ErrPaymentServiceNotConfigured = errors.New("payment service not configured")
 	ErrMidtransNotConfigured       = errors.New("midtrans not configured")
@@ -57,6 +74,7 @@ var (
 	ErrPlanNotFound                = errors.New("plan not found")
 	ErrPaymentNotFound             = errors.New("payment not found")
 	ErrMidtransOrderNotFound       = errors.New("midtrans order id not found")
+	ErrInvalidMidtransSignature    = errors.New("invalid midtrans signature")
 )
 
 type paymentMeta struct {
@@ -197,15 +215,7 @@ func (s *PaymentService) Progress(ctx context.Context, input PaymentProgressInpu
 	}
 
 	normalizedStatus := normalizeMidtransStatus(statusResult.TransactionStatus, statusResult.FraudStatus)
-	var paidAt *time.Time
-	if normalizedStatus == "paid" {
-		if payment.PaidAt != nil {
-			paidAt = payment.PaidAt
-		} else {
-			now := time.Now().UTC()
-			paidAt = &now
-		}
-	}
+	paidAt := paidAtForStatus(normalizedStatus, payment.PaidAt)
 
 	if err := s.PaymentRepo.UpdateStatus(ctx, payment.ID, normalizedStatus, paidAt); err != nil {
 		return PaymentProgressResult{}, err
@@ -225,6 +235,64 @@ func (s *PaymentService) Progress(ctx context.Context, input PaymentProgressInpu
 		MidtransOrderID: meta.OrderID,
 		RedirectURL:     meta.RedirectURL,
 	}, nil
+}
+
+func (s *PaymentService) HandleMidtransWebhook(ctx context.Context, input MidtransWebhookInput) (MidtransWebhookResult, error) {
+	if s.PaymentRepo == nil || s.CustomerRepo == nil || s.Midtrans == nil {
+		return MidtransWebhookResult{}, ErrPaymentServiceNotConfigured
+	}
+
+	if !verifyMidtransSignature(input, s.Midtrans.ServerKey()) {
+		return MidtransWebhookResult{}, ErrInvalidMidtransSignature
+	}
+
+	orderID := strings.TrimSpace(input.OrderID)
+	if orderID == "" {
+		return MidtransWebhookResult{}, ErrMidtransOrderNotFound
+	}
+
+	payment, ok, err := s.PaymentRepo.GetByMidtransOrderID(ctx, orderID)
+	if err != nil {
+		return MidtransWebhookResult{}, err
+	}
+	if !ok {
+		return MidtransWebhookResult{}, ErrPaymentNotFound
+	}
+
+	normalizedStatus := normalizeMidtransStatus(input.TransactionStatus, input.FraudStatus)
+	paidAt := paidAtForStatus(normalizedStatus, payment.PaidAt)
+
+	if err := s.PaymentRepo.UpdateStatus(ctx, payment.ID, normalizedStatus, paidAt); err != nil {
+		return MidtransWebhookResult{}, err
+	}
+
+	if normalizedStatus == "paid" {
+		if err := s.CustomerRepo.UpdateStatus(ctx, payment.CustomerID, "paid"); err != nil {
+			return MidtransWebhookResult{}, err
+		}
+	}
+
+	return MidtransWebhookResult{
+		PaymentID: payment.ID,
+		Status:    normalizedStatus,
+		PaidAt:    paidAt,
+	}, nil
+}
+
+func verifyMidtransSignature(input MidtransWebhookInput, serverKey string) bool {
+	serverKey = strings.TrimSpace(serverKey)
+	if serverKey == "" {
+		return false
+	}
+	signatureKey := strings.ToLower(strings.TrimSpace(input.SignatureKey))
+	if signatureKey == "" {
+		return false
+	}
+
+	raw := strings.TrimSpace(input.OrderID) + strings.TrimSpace(input.StatusCode) + strings.TrimSpace(input.GrossAmount) + serverKey
+	hash := sha512.Sum512([]byte(raw))
+	expected := hex.EncodeToString(hash[:])
+	return signatureKey == strings.ToLower(expected)
 }
 
 func buildOrderID(customerID string) string {
@@ -259,6 +327,17 @@ func normalizeMidtransStatus(transactionStatus, fraudStatus string) string {
 	default:
 		return "pending"
 	}
+}
+
+func paidAtForStatus(status string, existing *time.Time) *time.Time {
+	if status != "paid" {
+		return nil
+	}
+	if existing != nil {
+		return existing
+	}
+	now := time.Now().UTC()
+	return &now
 }
 
 func marshalPaymentMeta(meta paymentMeta) (string, error) {

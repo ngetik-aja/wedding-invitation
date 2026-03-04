@@ -9,14 +9,18 @@ import (
 )
 
 var (
-	tenantResolver *customerService.CustomerService
-	invitationSvc  *customerService.InvitationService
+	tenantResolver      *customerService.CustomerService
+	invitationSvc       *customerService.InvitationService
+	paymentSvc          *customerService.PaymentService
+	publicInvitationSvc *customerService.PublicInvitationService
 )
 
-func ConfigureServices(customer *customerService.CustomerService, invitation *customerService.InvitationService, domain string) {
+func ConfigureServices(customer *customerService.CustomerService, invitation *customerService.InvitationService, payment *customerService.PaymentService, publicInvitation *customerService.PublicInvitationService, domain string) {
 	_ = domain
 	tenantResolver = customer
 	invitationSvc = invitation
+	paymentSvc = payment
+	publicInvitationSvc = publicInvitation
 }
 
 func writeServiceUnavailable(c *gin.Context) {

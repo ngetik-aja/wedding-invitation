@@ -101,6 +101,10 @@ func (s *MidtransService) ClientKey() string {
 	return s.clientKey
 }
 
+func (s *MidtransService) ServerKey() string {
+	return s.serverKey
+}
+
 func (s *MidtransService) CreateTransaction(ctx context.Context, input MidtransCreateTransactionInput) (MidtransCreateTransactionResult, error) {
 	firstName, lastName := splitFullName(input.FullName)
 	planCode := strings.TrimSpace(input.PlanCode)

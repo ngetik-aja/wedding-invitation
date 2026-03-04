@@ -76,7 +76,7 @@ func buildHandler(ctx context.Context) (http.Handler, func() error, error) {
 
 	customerHandlers.ConfigureServices(svc.Register, svc.CustomerLogin, svc.Invitation, svc.CustomerPayment)
 	adminHandlers.ConfigureServices(svc.AdminAuth, svc.AdminUser, svc.AdminInvitation, svc.AdminCustomer, jwtConfig)
-	publicHandlers.ConfigureServices(svc.Customer, svc.Invitation, baseDomain)
+	publicHandlers.ConfigureServices(svc.Customer, svc.Invitation, svc.CustomerPayment, svc.PublicInvitation, baseDomain)
 
 	router := routes.SetupRouter(dbConn)
 

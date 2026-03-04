@@ -9,20 +9,22 @@ import (
 )
 
 type Registry struct {
-	Customer        *customerService.CustomerService
-	Invitation      *customerService.InvitationService
-	Register        *customerService.RegisterService
-	CustomerLogin   *customerService.LoginService
-	CustomerPayment *customerService.PaymentService
-	AdminAuth       *adminService.AuthService
-	AdminUser       *adminService.UserService
-	AdminInvitation *adminService.InvitationService
-	AdminCustomer   *adminService.CustomerService
+	Customer         *customerService.CustomerService
+	Invitation       *customerService.InvitationService
+	PublicInvitation *customerService.PublicInvitationService
+	Register         *customerService.RegisterService
+	CustomerLogin    *customerService.LoginService
+	CustomerPayment  *customerService.PaymentService
+	AdminAuth        *adminService.AuthService
+	AdminUser        *adminService.UserService
+	AdminInvitation  *adminService.InvitationService
+	AdminCustomer    *adminService.CustomerService
 }
 
 func NewRegistry(repos repository.Registry, baseDomain string, jwtConfig auth.Config, midtransService *external.MidtransService) Registry {
 	customerSvc := &customerService.CustomerService{Repo: repos.Customer}
 	invitationSvc := &customerService.InvitationService{Repo: repos.Invitation, CustomerRepo: repos.Customer, BaseDomain: baseDomain}
+	publicInvitationSvc := &customerService.PublicInvitationService{InvitationRepo: repos.Invitation, RsvpRepo: repos.Rsvp, WishRepo: repos.Wish}
 	registerSvc := &customerService.RegisterService{CustomerRepo: repos.Customer, InvitationRepo: repos.Invitation, BaseDomain: baseDomain}
 	loginSvc := &customerService.LoginService{CustomerRepo: repos.Customer, InvitationRepo: repos.Invitation}
 	paymentSvc := &customerService.PaymentService{CustomerRepo: repos.Customer, PlanRepo: repos.Plan, PaymentRepo: repos.Payment, Midtrans: midtransService}
@@ -32,14 +34,15 @@ func NewRegistry(repos repository.Registry, baseDomain string, jwtConfig auth.Co
 	adminCustomerSvc := &adminService.CustomerService{Repo: repos.Customer}
 
 	return Registry{
-		Customer:        customerSvc,
-		Invitation:      invitationSvc,
-		Register:        registerSvc,
-		CustomerLogin:   loginSvc,
-		CustomerPayment: paymentSvc,
-		AdminAuth:       adminAuthSvc,
-		AdminUser:       adminUserSvc,
-		AdminInvitation: adminInvitationSvc,
-		AdminCustomer:   adminCustomerSvc,
+		Customer:         customerSvc,
+		Invitation:       invitationSvc,
+		PublicInvitation: publicInvitationSvc,
+		Register:         registerSvc,
+		CustomerLogin:    loginSvc,
+		CustomerPayment:  paymentSvc,
+		AdminAuth:        adminAuthSvc,
+		AdminUser:        adminUserSvc,
+		AdminInvitation:  adminInvitationSvc,
+		AdminCustomer:    adminCustomerSvc,
 	}
 }

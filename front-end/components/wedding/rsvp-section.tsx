@@ -1,21 +1,27 @@
 "use client";
 
-import React from "react"
-
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import React, { useState } from "react";
 import { Check, Send } from "lucide-react";
 
+import { submitPublicRsvp } from "@/lib/public-invitation";
+import { getErrorMessage } from "@/lib/http";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
+
 interface RsvpSectionProps {
+  ownerSlug: string;
+  invitationSlug: string;
   guestName?: string;
+  onSubmitted?: () => void;
 }
 
-export function RsvpSection({ guestName }: RsvpSectionProps) {
+export function RsvpSection({ ownerSlug, invitationSlug, guestName, onSubmitted }: RsvpSectionProps) {
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [formData, setFormData] = useState({
     name: guestName || "",
     attendance: "attending",
@@ -23,11 +29,25 @@ export function RsvpSection({ guestName }: RsvpSectionProps) {
     message: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically send the data to your backend
-    console.log("RSVP submitted:", formData);
-    setSubmitted(true);
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await submitPublicRsvp(ownerSlug, invitationSlug, {
+        guestName: formData.name,
+        attendance: formData.attendance,
+        guestsCount: formData.attendance === "attending" ? Math.max(1, Number.parseInt(formData.guests || "1", 10)) : 0,
+        message: formData.message,
+      });
+      setSubmitted(true);
+      onSubmitted?.();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "Failed to submit RSVP"));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -37,13 +57,8 @@ export function RsvpSection({ guestName }: RsvpSectionProps) {
           <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
             <Check className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="font-serif text-3xl md:text-4xl text-foreground mb-4">
-            Thank You!
-          </h2>
-          <p className="text-muted-foreground">
-            Your response has been recorded. We look forward to celebrating with
-            you!
-          </p>
+          <h2 className="font-serif text-3xl md:text-4xl text-foreground mb-4">Thank You!</h2>
+          <p className="text-muted-foreground">Your response has been recorded. We look forward to celebrating with you!</p>
         </div>
       </section>
     );
@@ -53,12 +68,8 @@ export function RsvpSection({ guestName }: RsvpSectionProps) {
     <section className="py-20 px-6 bg-card">
       <div className="max-w-xl mx-auto">
         <div className="text-center mb-12">
-          <p className="text-sm uppercase tracking-widest text-muted-foreground mb-3">
-            Will You Join Us?
-          </p>
-          <h2 className="font-serif text-4xl md:text-5xl text-foreground">
-            RSVP
-          </h2>
+          <p className="text-sm uppercase tracking-widest text-muted-foreground mb-3">Will You Join Us?</p>
+          <h2 className="font-serif text-4xl md:text-5xl text-foreground">RSVP</h2>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -67,10 +78,8 @@ export function RsvpSection({ guestName }: RsvpSectionProps) {
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              placeholder="Enter your full name"
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Bapak/Ibu/Saudara/i"
               required
               className="bg-background"
             />
@@ -80,22 +89,16 @@ export function RsvpSection({ guestName }: RsvpSectionProps) {
             <Label>Will you be attending?</Label>
             <RadioGroup
               value={formData.attendance}
-              onValueChange={(value) =>
-                setFormData({ ...formData, attendance: value })
-              }
+              onValueChange={(value) => setFormData({ ...formData, attendance: value })}
               className="flex gap-6"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="attending" id="attending" />
-                <Label htmlFor="attending" className="font-normal cursor-pointer">
-                  Joyfully Accept
-                </Label>
+                <Label htmlFor="attending" className="font-normal cursor-pointer">Joyfully Accept</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="not-attending" id="not-attending" />
-                <Label htmlFor="not-attending" className="font-normal cursor-pointer">
-                  Regretfully Decline
-                </Label>
+                <Label htmlFor="not-attending" className="font-normal cursor-pointer">Regretfully Decline</Label>
               </div>
             </RadioGroup>
           </div>
@@ -109,9 +112,7 @@ export function RsvpSection({ guestName }: RsvpSectionProps) {
                 min="1"
                 max="5"
                 value={formData.guests}
-                onChange={(e) =>
-                  setFormData({ ...formData, guests: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, guests: e.target.value })}
                 className="bg-background"
               />
             </div>
@@ -122,18 +123,18 @@ export function RsvpSection({ guestName }: RsvpSectionProps) {
             <Textarea
               id="message"
               value={formData.message}
-              onChange={(e) =>
-                setFormData({ ...formData, message: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
               placeholder="Write your wishes for the happy couple..."
               rows={4}
               className="bg-background resize-none"
             />
           </div>
 
-          <Button type="submit" className="w-full" size="lg">
+          {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
+
+          <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
             <Send className="w-4 h-4 mr-2" />
-            Send RSVP
+            {isSubmitting ? "Sending..." : "Send RSVP"}
           </Button>
         </form>
       </div>

@@ -90,6 +90,13 @@ func (r *CustomerRepository) UpdateDomain(ctx context.Context, id string, domain
 		Update("domain", domain).Error
 }
 
+func (r *CustomerRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+	return r.DB.WithContext(ctx).
+		Model(&model.Customer{}).
+		Where("id = ?", id).
+		Update("status", status).Error
+}
+
 func (r *CustomerRepository) ExistsByDomain(ctx context.Context, domain string) (bool, error) {
 	var count int64
 	err := r.DB.WithContext(ctx).Model(&model.Customer{}).Where("domain = ?", domain).Count(&count).Error

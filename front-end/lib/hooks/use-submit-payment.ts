@@ -1,10 +1,18 @@
 import { useMutation } from "@tanstack/react-query"
-import { submitPayment, type PaymentPayload } from "@/lib/payment"
+import { getPaymentProgress, submitPayment, type CreatePaymentPayload, type PaymentProgressPayload } from "@/lib/payment"
 import { getErrorMessage } from "@/lib/http"
 
 export function useSubmitPayment() {
   return useMutation({
-    mutationFn: (payload: PaymentPayload) => submitPayment(payload),
+    mutationFn: (payload: CreatePaymentPayload) => submitPayment(payload),
+    onError: () => undefined,
+    throwOnError: false,
+  })
+}
+
+export function useCheckPaymentProgress() {
+  return useMutation({
+    mutationFn: (payload: PaymentProgressPayload) => getPaymentProgress(payload),
     onError: () => undefined,
     throwOnError: false,
   })

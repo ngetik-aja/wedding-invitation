@@ -435,7 +435,7 @@ function WeddingInvitationContent() {
 
       <StorySection stories={weddingData.stories} />
 
-      <RsvpSection guestName={weddingData.guestName || weddingData.guestLabel} />
+      <RsvpSection ownerSlug="preview" invitationSlug="preview" guestName={weddingData.guestName || weddingData.guestLabel} />
 
       <WishesSection wishes={weddingData.wishes} />
 

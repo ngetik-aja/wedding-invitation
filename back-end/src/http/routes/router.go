@@ -7,25 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/proxima-labs/wedding-invitation-back-end/src/auth"
 	handlers "github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers"
 	middleware "github.com/proxima-labs/wedding-invitation-back-end/src/http/middleware"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/http/routes/admin"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/http/routes/customer"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/http/routes/public"
-	adminsvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/admin"
-	customersvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
 )
-
-type Services struct {
-	Customer        *customersvc.CustomerService
-	Invitation      *customersvc.InvitationService
-	Register        *customersvc.RegisterService
-	CustomerLogin   *customersvc.LoginService
-	AdminAuth       *adminsvc.AuthService
-	AdminUser       *adminsvc.UserService
-	AdminInvitation *adminsvc.InvitationService
-}
 
 type routeInfo struct {
 	Method   string
@@ -34,7 +21,7 @@ type routeInfo struct {
 	Handlers int
 }
 
-func SetupRouter(db *gorm.DB, baseDomain string, jwtConfig auth.Config, services Services) *gin.Engine {
+func SetupRouter(db *gorm.DB) *gin.Engine {
 	printRoutes := initRouteLogger()
 
 	router := gin.New()
@@ -43,61 +30,30 @@ func SetupRouter(db *gorm.DB, baseDomain string, jwtConfig auth.Config, services
 	router.Use(middleware.CORS())
 
 	healthHandler := &handlers.HealthHandler{DB: db}
-
-	// System routes
 	router.GET("/healthz", healthHandler.Healthz)
 
 	api := router.Group("/api/v1")
-
-	public.RegisterRoutes(api.Group("/public"), public.Services{
-		Customer:   services.Customer,
-		Invitation: services.Invitation,
-	}, baseDomain)
-
-	customer.RegisterRoutes(api.Group("/customer"), customer.Services{
-		Register:   services.Register,
-		Invitation: services.Invitation,
-		Login:      services.CustomerLogin,
-	})
-
-	admin.RegisterRoutes(api.Group("/admin"), admin.Services{
-		Auth:       services.AdminAuth,
-		User:       services.AdminUser,
-		Invitation: services.AdminInvitation,
-	}, jwtConfig)
+	public.RegisterRoutes(api.Group("/public"))
+	customer.RegisterRoutes(api.Group("/customer"))
+	admin.RegisterRoutes(api.Group("/admin"))
 
 	printRoutes()
-
 	return router
 }
 
 func initRouteLogger() func() {
 	routes := make([]routeInfo, 0)
 	gin.DebugPrintRouteFunc = func(method, absolutePath, handlerName string, nuHandlers int) {
-		routes = append(routes, routeInfo{
-			Method:   method,
-			Path:     absolutePath,
-			Handler:  handlerName,
-			Handlers: nuHandlers,
-		})
+		routes = append(routes, routeInfo{Method: method, Path: absolutePath, Handler: handlerName, Handlers: nuHandlers})
 	}
-
-	return func() {
-		logGroupedRoutes(routes)
-	}
+	return func() { logGroupedRoutes(routes) }
 }
 
 func logGroupedRoutes(routes []routeInfo) {
 	if len(routes) == 0 {
 		return
 	}
-	groups := map[string][]routeInfo{
-		"system":   {},
-		"public":   {},
-		"customer": {},
-		"admin":    {},
-		"other":    {},
-	}
+	groups := map[string][]routeInfo{"system": {}, "public": {}, "customer": {}, "admin": {}, "other": {}}
 
 	for _, route := range routes {
 		group := "other"
@@ -114,8 +70,7 @@ func logGroupedRoutes(routes []routeInfo) {
 		groups[group] = append(groups[group], route)
 	}
 
-	order := []string{"system", "public", "customer", "admin", "other"}
-	for _, name := range order {
+	for _, name := range []string{"system", "public", "customer", "admin", "other"} {
 		items := groups[name]
 		if len(items) == 0 {
 			continue

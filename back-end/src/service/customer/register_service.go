@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/service/shared"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -26,15 +25,17 @@ type RegisterInput struct {
 }
 
 type RegisterService struct {
-	CustomerRepo   *repository.CustomerRepository
-	InvitationRepo *repository.InvitationRepository
-	BaseDomain     string
+	CustomerRepo     *repository.CustomerRepository
+	InvitationRepo   *repository.InvitationRepository
+	BaseDomain       string
+	Slugify          func(string) string
+	EnsureUniqueSlug func(context.Context, string, func(context.Context, string) (bool, error)) (string, error)
 }
 
 var ErrRegisterNotConfigured = errors.New("register service not configured")
 
 func (s *RegisterService) Register(ctx context.Context, input RegisterInput) (customerID string, invitationID string, slug string, domain string, err error) {
-	if s.CustomerRepo == nil || s.InvitationRepo == nil {
+	if s.CustomerRepo == nil || s.InvitationRepo == nil || s.Slugify == nil || s.EnsureUniqueSlug == nil {
 		return "", "", "", "", ErrRegisterNotConfigured
 	}
 
@@ -54,15 +55,15 @@ func (s *RegisterService) Register(ctx context.Context, input RegisterInput) (cu
 		searchName = strings.TrimSpace(input.FullName)
 	}
 
-	baseSlug := shared.Slugify(input.Slug)
+	baseSlug := s.Slugify(input.Slug)
 	if baseSlug == "" {
-		baseSlug = shared.Slugify(input.Title)
+		baseSlug = s.Slugify(input.Title)
 	}
 	if baseSlug == "" {
-		baseSlug = shared.Slugify(input.FullName)
+		baseSlug = s.Slugify(input.FullName)
 	}
 
-	slug, err = shared.EnsureUniqueSlug(ctx, baseSlug, func(ctx context.Context, candidate string) (bool, error) {
+	slug, err = s.EnsureUniqueSlug(ctx, baseSlug, func(ctx context.Context, candidate string) (bool, error) {
 		domain := buildCustomerDomain(candidate, s.BaseDomain)
 		return s.CustomerRepo.ExistsByDomain(ctx, domain)
 	})
@@ -107,15 +108,8 @@ func (s *RegisterService) Register(ctx context.Context, input RegisterInput) (cu
 }
 
 func buildCustomerDomain(slug string, baseDomain string) string {
-	slug = strings.TrimSpace(slug)
-	baseDomain = strings.TrimSpace(baseDomain)
-	if slug == "" {
-		return baseDomain
-	}
-	if baseDomain == "" {
-		return slug
-	}
-	return slug + "." + baseDomain
+	_ = baseDomain
+	return strings.TrimSpace(slug)
 }
 
 func normalizeContent(input []byte, fullName string) []byte {

@@ -3,23 +3,15 @@ package customer
 import (
 	"github.com/gin-gonic/gin"
 
-	customhandlers "github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers/customer"
-	customersvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
+	customerHandlers "github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers/customer"
 )
 
-type Services struct {
-	Register   *customersvc.RegisterService
-	Invitation *customersvc.InvitationService
-	Login      *customersvc.LoginService
-}
-
-func RegisterRoutes(group *gin.RouterGroup, services Services) {
-	customerRegisterHandler := &customhandlers.RegisterHandler{Service: services.Register}
-	customerLoginHandler := &customhandlers.LoginHandler{Service: services.Login}
-	customerInvitationHandler := &customhandlers.InvitationHandler{Service: services.Invitation}
-
-	group.POST("/register", customerRegisterHandler.Register)
-	group.POST("/login", customerLoginHandler.Login)
-	group.GET("/invitations/:id", customerInvitationHandler.GetInvitation)
-	group.PATCH("/invitations/:id", customerInvitationHandler.UpdateInvitation)
+func RegisterRoutes(group *gin.RouterGroup) {
+	group.GET("/plans", customerHandlers.ListPlansHandler)
+	group.POST("/register", customerHandlers.RegisterHandler)
+	group.POST("/login", customerHandlers.LoginHandler)
+	group.GET("/invitations/:id", customerHandlers.GetInvitationHandler)
+	group.PATCH("/invitations/:id", customerHandlers.UpdateInvitationHandler)
+	group.POST("/payments", customerHandlers.CreatePaymentHandler)
+	group.GET("/payments/progress", customerHandlers.PaymentProgressHandler)
 }

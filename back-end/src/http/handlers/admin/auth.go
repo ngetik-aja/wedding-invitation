@@ -7,38 +7,28 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers/validation"
-	adminsvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/admin"
+	httpRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request"
+	adminRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request/admin"
 )
-
-type AuthHandler struct {
-	Service *adminsvc.AuthService
-}
-
-type loginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
-}
 
 type loginResponse struct {
 	AccessToken string `json:"accessToken"`
 }
 
-func (h *AuthHandler) Login(c *gin.Context) {
-	var req loginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		validation.WriteValidationError(c, req, err)
+func LoginHandler(c *gin.Context) {
+	if !ensureService(c, authService) {
 		return
 	}
 
-	if err := validation.ValidateStruct(req); err != nil {
-		validation.WriteValidationError(c, req, err)
+	req, payload, err := adminRequest.NewLoginRequest(c)
+	if err != nil {
+		httpRequest.WriteValidationError(c, payload, err)
 		return
 	}
 
 	userAgent := c.GetHeader("User-Agent")
 	ip := c.ClientIP()
-	accessToken, refreshToken, refreshExpires, err := h.Service.Login(c.Request.Context(), strings.ToLower(req.Email), req.Password, userAgent, ip)
+	accessToken, refreshToken, refreshExpires, err := authService.Login(c.Request.Context(), strings.ToLower(req.Email), req.Password, userAgent, ip)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
@@ -48,14 +38,18 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, loginResponse{AccessToken: accessToken})
 }
 
-func (h *AuthHandler) Refresh(c *gin.Context) {
+func RefreshHandler(c *gin.Context) {
+	if !ensureService(c, authService) {
+		return
+	}
+
 	refreshToken, err := c.Cookie("admin_refresh")
 	if err != nil || refreshToken == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing refresh"})
 		return
 	}
 
-	accessToken, refreshExpires, err := h.Service.Refresh(c.Request.Context(), refreshToken)
+	accessToken, refreshExpires, err := authService.Refresh(c.Request.Context(), refreshToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh"})
 		return
@@ -65,9 +59,13 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	c.JSON(http.StatusOK, loginResponse{AccessToken: accessToken})
 }
 
-func (h *AuthHandler) Logout(c *gin.Context) {
+func LogoutHandler(c *gin.Context) {
+	if !ensureService(c, authService) {
+		return
+	}
+
 	refreshToken, _ := c.Cookie("admin_refresh")
-	_ = h.Service.Logout(c.Request.Context(), refreshToken)
+	_ = authService.Logout(c.Request.Context(), refreshToken)
 	setRefreshCookie(c, "", 0)
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }

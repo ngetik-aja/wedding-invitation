@@ -13,9 +13,11 @@ interface GiftInfo {
 
 interface GiftSectionProps {
   gifts: GiftInfo[];
+  theme?: string;
 }
 
-export function GiftSection({ gifts }: GiftSectionProps) {
+export function GiftSection({ gifts, theme }: GiftSectionProps) {
+  const isModern = theme === "modern";
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   const copyToClipboard = (text: string, index: number) => {
@@ -28,7 +30,13 @@ export function GiftSection({ gifts }: GiftSectionProps) {
     <section className="py-20 px-6 bg-card">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-12">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
+          <div
+            className={
+              isModern
+                ? "w-16 h-16 mx-auto mb-6 rounded-none bg-primary/10 flex items-center justify-center"
+                : "w-16 h-16 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center"
+            }
+          >
             <Gift className="w-8 h-8 text-primary" />
           </div>
           <p className="text-sm uppercase tracking-widest text-muted-foreground mb-3">
@@ -48,10 +56,20 @@ export function GiftSection({ gifts }: GiftSectionProps) {
           {gifts.map((gift, index) => (
             <div
               key={index}
-              className="bg-background p-6 rounded-lg border border-border shadow-sm"
+              className={
+                isModern
+                  ? "bg-background p-6 rounded-none border border-border shadow-sm"
+                  : "bg-background p-6 rounded-xl border border-border shadow-sm"
+              }
             >
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center shrink-0">
+                <div
+                  className={
+                    isModern
+                      ? "w-12 h-12 rounded-none bg-primary/10 flex items-center justify-center shrink-0"
+                      : "w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0"
+                  }
+                >
                   {gift.type === "bank" ? (
                     <CreditCard className="w-6 h-6 text-primary" />
                   ) : (
@@ -66,7 +84,13 @@ export function GiftSection({ gifts }: GiftSectionProps) {
                     a/n {gift.accountName}
                   </p>
                   <div className="flex items-center gap-3">
-                    <code className="text-lg font-mono text-foreground bg-muted px-3 py-1 rounded">
+                    <code
+                      className={
+                        isModern
+                          ? "text-lg font-mono tracking-wider text-foreground bg-muted px-3 py-1 rounded-none"
+                          : "text-lg font-mono text-foreground bg-muted px-3 py-1 rounded"
+                      }
+                    >
                       {gift.accountNumber}
                     </code>
                     <Button

@@ -14,6 +14,7 @@ import { StorySection } from "@/components/wedding/story-section";
 import { WishesSection } from "@/components/wedding/wishes-section";
 import { type ThemeKey, themes, type WeddingData } from "@/lib/wedding-context";
 import { apiClient } from "@/lib/http";
+import { listPublicWishes } from "@/lib/public-invitation";
 
 const defaultData: WeddingData = {
   couple: {
@@ -73,23 +74,7 @@ const defaultGallery = [
   { url: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800&q=80", caption: "Our journey" },
 ];
 
-const defaultWishes = [
-  {
-    name: "John & Jane",
-    message: "Wishing you both a lifetime of love, laughter, and endless happiness. Congratulations on your wedding!",
-    date: "Jan 20, 2025",
-  },
-  {
-    name: "Michael",
-    message: "May your love grow stronger each day. So happy for you both!",
-    date: "Jan 18, 2025",
-  },
-  {
-    name: "Lisa Wong",
-    message: "What a beautiful couple! Wishing you all the best on this new journey together.",
-    date: "Jan 15, 2025",
-  },
-];
+const defaultWishes: Array<{ name: string; message: string; date: string }> = [];
 
 const defaultStories = [
   {
@@ -213,12 +198,14 @@ export default function GuestInvitationPage() {
   const guest = params?.guest ? decodeGuestName(params.guest) : "";
 
   const [data, setData] = useState<WeddingData>(defaultData);
+  const [wishes, setWishes] = useState<Array<{ name: string; message: string; date: string }>>([]);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     if (!owner) {
       setData(defaultData);
+      setWishes(defaultWishes);
       setIsHydrated(true);
       return;
     }
@@ -250,6 +237,34 @@ export default function GuestInvitationPage() {
         if (!isActive) return;
         setData(defaultData);
         setIsHydrated(true);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [owner]);
+
+  useEffect(() => {
+    if (!owner) {
+      setWishes(defaultWishes);
+      return;
+    }
+
+    let isActive = true;
+    listPublicWishes(owner, owner)
+      .then((items) => {
+        if (!isActive) return;
+        setWishes(
+          items.map((item) => ({
+            name: item.guestName,
+            message: item.message,
+            date: new Date(item.createdAt).toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" }),
+          })),
+        );
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setWishes(defaultWishes);
       });
 
     return () => {
@@ -306,6 +321,21 @@ export default function GuestInvitationPage() {
     setIsPlaying(false);
   };
 
+  const reloadWishes = () => {
+    if (!owner) return;
+    listPublicWishes(owner, owner)
+      .then((items) => {
+        setWishes(
+          items.map((item) => ({
+            name: item.guestName,
+            message: item.message,
+            date: new Date(item.createdAt).toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" }),
+          })),
+        );
+      })
+      .catch(() => {});
+  };
+
   const weddingData = {
     bride: {
       name: data.couple.brideName || "Sarah Amelia",
@@ -351,7 +381,7 @@ export default function GuestInvitationPage() {
       ? data.gallery.photos.map((url, i) => ({ url, caption: `Photo ${i + 1}` }))
       : defaultGallery,
     stories: data.story.stories.length > 0 ? data.story.stories : defaultStories,
-    wishes: defaultWishes,
+    wishes: wishes.length > 0 ? wishes : defaultWishes,
     gifts: data.gift.banks.length > 0
       ? data.gift.banks.map((bank) => ({
           type: "bank" as const,
@@ -390,27 +420,34 @@ export default function GuestInvitationPage() {
         weddingDate={weddingData.weddingDate}
         guestLabel={weddingData.guestLabel}
         guestName={weddingData.guestName}
+        theme={data.theme.theme}
       />
 
-      <CoupleSection bride={weddingData.bride} groom={weddingData.groom} />
+      <CoupleSection bride={weddingData.bride} groom={weddingData.groom} theme={data.theme.theme} />
 
-      <CountdownSection targetDate={weddingData.targetDate} />
+      <CountdownSection targetDate={weddingData.targetDate} theme={data.theme.theme} />
 
-      <EventSection events={weddingData.events} />
+      <EventSection events={weddingData.events} theme={data.theme.theme} />
 
       <GallerySection images={weddingData.gallery} />
 
-      <StorySection stories={weddingData.stories} />
+      <StorySection stories={weddingData.stories} theme={data.theme.theme} />
 
-      <RsvpSection guestName={weddingData.guestName || weddingData.guestLabel} />
+      <RsvpSection
+        ownerSlug={owner}
+        invitationSlug={owner}
+        guestName={weddingData.guestName || weddingData.guestLabel}
+        onSubmitted={reloadWishes}
+      />
 
-      <WishesSection wishes={weddingData.wishes} />
+      <WishesSection wishes={weddingData.wishes} theme={data.theme.theme} />
 
-      <GiftSection gifts={weddingData.gifts} />
+      <GiftSection gifts={weddingData.gifts} theme={data.theme.theme} />
 
       <FooterSection
         brideName={weddingData.bride.name}
         groomName={weddingData.groom.name}
+        theme={data.theme.theme}
       />
     </main>
   );

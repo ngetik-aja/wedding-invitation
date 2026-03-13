@@ -3,39 +3,36 @@ package customer
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"regexp"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers/validation"
+	httpRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request"
+	customerRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request/customer"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
-	customersvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/service/shared"
 )
 
-type InvitationHandler struct {
-	Service *customersvc.InvitationService
-}
+var invitationSlugRe = regexp.MustCompile(`[^a-z0-9-]+`)
 
-type invitationUpdatePayload struct {
-	CustomerID  string          `json:"customer_id" binding:"required"`
-	Slug        string          `json:"slug"`
-	Title       string          `json:"title"`
-	EventDate   string          `json:"event_date"`
-	ThemeKey    string          `json:"theme_key"`
-	IsPublished *bool           `json:"is_published"`
-	Content     json.RawMessage `json:"content" binding:"required"`
-}
-
-func (h *InvitationHandler) GetInvitation(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+func GetInvitationHandler(c *gin.Context) {
+	if invitationService == nil {
+		writeServiceUnavailable(c)
 		return
 	}
 
-	inv, ok, err := h.Service.GetByID(c.Request.Context(), id)
+	req, err := customerRequest.NewInvitationIDRequest(c)
+	if err != nil {
+		if errors.Is(err, customerRequest.ErrMissingID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	inv, ok, err := invitationService.GetByID(c.Request.Context(), req.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load invitation"})
 		return
@@ -60,52 +57,53 @@ func (h *InvitationHandler) GetInvitation(c *gin.Context) {
 	})
 }
 
-func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+func UpdateInvitationHandler(c *gin.Context) {
+	if invitationService == nil {
+		writeServiceUnavailable(c)
 		return
 	}
 
-	var payload invitationUpdatePayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		validation.WriteValidationError(c, payload, err)
+	idReq, err := customerRequest.NewInvitationIDRequest(c)
+	if err != nil {
+		if errors.Is(err, customerRequest.ErrMissingID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
 
-	if err := validation.ValidateStruct(payload); err != nil {
-		validation.WriteValidationError(c, payload, err)
+	req, payload, err := customerRequest.NewUpdateInvitationRequest(c)
+	if err != nil {
+		if errors.Is(err, customerRequest.ErrInvalidEventDate) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event_date"})
+			return
+		}
+		httpRequest.WriteValidationError(c, payload, err)
 		return
 	}
 
-	inv, ok, err := h.Service.GetByID(c.Request.Context(), id)
+	inv, ok, err := invitationService.GetByID(c.Request.Context(), idReq.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load invitation"})
 		return
 	}
-	if !ok || inv.CustomerID != payload.CustomerID {
+	if !ok || inv.CustomerID != req.CustomerID {
 		c.JSON(http.StatusNotFound, gin.H{"error": "invitation not found"})
 		return
 	}
 
-	var eventDate *time.Time
-	if payload.EventDate != "" {
-		parsed, err := time.Parse("2006-01-02", payload.EventDate)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event_date"})
-			return
-		}
-		eventDate = &parsed
-	} else {
-		eventDate = inv.EventDate
+	eventDate := inv.EventDate
+	if req.HasEventDateInput {
+		eventDate = req.EventDate
 	}
 
-	title := strings.TrimSpace(payload.Title)
+	title := req.Title
 	if title == "" {
 		title = inv.Title
 	}
 
-	themeKey := strings.TrimSpace(payload.ThemeKey)
+	themeKey := req.ThemeKey
 	if themeKey == "" {
 		themeKey = inv.ThemeKey
 	}
@@ -116,28 +114,19 @@ func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
 	}
 
 	isPublished := inv.IsPublished
-	if payload.IsPublished != nil {
-		isPublished = *payload.IsPublished
+	if req.IsPublished != nil {
+		isPublished = *req.IsPublished
 	}
 
-	content := payload.Content
-	if len(bytes.TrimSpace(content)) == 0 {
-		content = []byte("{}")
-	}
-
-	// Priority slug source:
-	// 1) derive from couple names in content
-	// 2) explicit slug from payload
-	// 3) existing invitation slug
-	slug := deriveSlugFromContent(content)
+	slug := deriveSlugFromContent(req.Content)
 	if slug == "" {
-		slug = strings.TrimSpace(payload.Slug)
+		slug = req.Slug
 	}
 	if slug == "" {
 		slug = inv.Slug
 	}
 
-	if err := h.Service.Update(c.Request.Context(), id, repository.InvitationUpdateInput{
+	if err := invitationService.Update(c.Request.Context(), idReq.ID, repository.InvitationUpdateInput{
 		CustomerID:  inv.CustomerID,
 		Slug:        slug,
 		Title:       title,
@@ -145,7 +134,7 @@ func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
 		EventDate:   eventDate,
 		ThemeKey:    themeKey,
 		IsPublished: isPublished,
-		Content:     content,
+		Content:     req.Content,
 	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update invitation"})
 		return
@@ -177,8 +166,8 @@ func deriveSlugFromContent(content json.RawMessage) string {
 	groom, _ := couple["groomName"].(string)
 	bride, _ := couple["brideName"].(string)
 
-	groomSlug := shared.Slugify(strings.TrimSpace(groom))
-	brideSlug := shared.Slugify(strings.TrimSpace(bride))
+	groomSlug := slugify(groom)
+	brideSlug := slugify(bride)
 
 	if groomSlug != "" && brideSlug != "" {
 		return groomSlug + "-" + brideSlug
@@ -191,4 +180,15 @@ func deriveSlugFromContent(content json.RawMessage) string {
 	}
 
 	return ""
+}
+
+func slugify(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	slug := strings.ReplaceAll(value, " ", "-")
+	slug = invitationSlugRe.ReplaceAllString(slug, "-")
+	slug = strings.Trim(slug, "-")
+	for strings.Contains(slug, "--") {
+		slug = strings.ReplaceAll(slug, "--", "-")
+	}
+	return slug
 }

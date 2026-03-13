@@ -3,27 +3,25 @@ package public
 import (
 	"github.com/gin-gonic/gin"
 
-	publichandlers "github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers/public"
-	publicmw "github.com/proxima-labs/wedding-invitation-back-end/src/http/middleware/public"
-	customersvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
+	publicHandlers "github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers/public"
 )
 
-type Services struct {
-	Customer   *customersvc.CustomerService
-	Invitation *customersvc.InvitationService
-}
+func RegisterRoutes(group *gin.RouterGroup) {
+	group.POST("/payments/midtrans/webhook", publicHandlers.MidtransWebhookHandler)
 
-func RegisterRoutes(group *gin.RouterGroup, services Services, baseDomain string) {
-	customerMiddleware := publicmw.CustomerMiddleware(services.Customer, baseDomain)
-	publicInvitationHandler := &publichandlers.InvitationHandler{Service: services.Invitation}
+	publicWithTenant := group.Group("")
+	publicWithTenant.Use(publicHandlers.TenantMiddleware())
+	publicWithTenant.GET("/invitations/:slug", publicHandlers.GetInvitationHandler)
+	publicWithTenant.GET("/invitation/:slug", publicHandlers.GetInvitationHandler)
+	publicWithTenant.POST("/invitations/:slug/rsvps", publicHandlers.CreateRsvpHandler)
+	publicWithTenant.GET("/invitations/:slug/wishes", publicHandlers.ListWishesHandler)
+	publicWithTenant.POST("/invitations/:slug/wishes", publicHandlers.CreateWishHandler)
 
-	publicWithCustomer := group.Group("")
-	publicWithCustomer.Use(customerMiddleware)
-	publicWithCustomer.GET("/invitations/:slug", publicInvitationHandler.GetInvitation)
-	publicWithCustomer.GET("/invitation/:slug", publicInvitationHandler.GetInvitation)
-
-	demoWithCustomer := group.Group("/:owner")
-	demoWithCustomer.Use(customerMiddleware)
-	demoWithCustomer.GET("/invitations/:slug", publicInvitationHandler.GetInvitation)
-	demoWithCustomer.GET("/invitation/:slug", publicInvitationHandler.GetInvitation)
+	demoWithTenant := group.Group("/:owner")
+	demoWithTenant.Use(publicHandlers.TenantMiddleware())
+	demoWithTenant.GET("/invitations/:slug", publicHandlers.GetInvitationHandler)
+	demoWithTenant.GET("/invitation/:slug", publicHandlers.GetInvitationHandler)
+	demoWithTenant.POST("/invitations/:slug/rsvps", publicHandlers.CreateRsvpHandler)
+	demoWithTenant.GET("/invitations/:slug/wishes", publicHandlers.ListWishesHandler)
+	demoWithTenant.POST("/invitations/:slug/wishes", publicHandlers.CreateWishHandler)
 }

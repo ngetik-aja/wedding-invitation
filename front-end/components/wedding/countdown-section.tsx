@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 interface CountdownSectionProps {
   targetDate: Date;
+  theme?: string;
 }
 
 interface TimeLeft {
@@ -13,7 +14,9 @@ interface TimeLeft {
   seconds: number;
 }
 
-export function CountdownSection({ targetDate }: CountdownSectionProps) {
+export function CountdownSection({ targetDate, theme }: CountdownSectionProps) {
+  const isModern = theme === "modern";
+
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({
     days: 0,
     hours: 0,
@@ -58,15 +61,23 @@ export function CountdownSection({ targetDate }: CountdownSectionProps) {
           Our Special Day
         </h2>
 
-        <div className="grid grid-cols-4 gap-4 md:gap-8">
+        <div className="grid grid-cols-4 gap-3 md:gap-6">
           {timeUnits.map((unit) => (
             <div key={unit.label} className="text-center">
-              <div className="bg-background border border-border rounded-lg p-4 md:p-6 shadow-sm">
-                <span className="font-serif text-3xl md:text-5xl text-foreground">
-                  {String(unit.value).padStart(2, "0")}
-                </span>
-              </div>
-              <p className="mt-3 text-xs md:text-sm uppercase tracking-wider text-muted-foreground">
+              {isModern ? (
+                <div className="bg-primary p-4 md:p-7">
+                  <span className="font-sans font-light text-4xl md:text-6xl tracking-tighter text-primary-foreground block">
+                    {String(unit.value).padStart(2, "0")}
+                  </span>
+                </div>
+              ) : (
+                <div className="bg-primary/25 rounded-2xl p-4 md:p-7">
+                  <span className="font-serif text-4xl md:text-6xl text-primary block">
+                    {String(unit.value).padStart(2, "0")}
+                  </span>
+                </div>
+              )}
+              <p className={`mt-3 text-xs uppercase text-muted-foreground ${isModern ? "tracking-[0.25em]" : "tracking-wider"}`}>
                 {unit.label}
               </p>
             </div>

@@ -10,9 +10,12 @@ interface StoryItem {
 
 interface StorySectionProps {
   stories: StoryItem[];
+  theme?: string;
 }
 
-export function StorySection({ stories }: StorySectionProps) {
+export function StorySection({ stories, theme }: StorySectionProps) {
+  const isModern = theme === "modern";
+
   if (!stories || stories.length === 0) return null;
 
   return (
@@ -40,10 +43,26 @@ export function StorySection({ stories }: StorySectionProps) {
                   key={`${story.title}-${index}`}
                   className={`relative flex flex-col gap-6 md:flex-row ${isLeft ? "md:pr-10" : "md:flex-row-reverse md:pl-10"}`}
                 >
-                  <div className="absolute left-1.5 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground md:left-1/2 md:-translate-x-1/2">
-                    <Heart className="h-3 w-3" />
+                  <div
+                    className={
+                      isModern
+                        ? "absolute left-1.5 top-2 flex h-6 w-6 items-center justify-center bg-primary md:left-1/2 md:-translate-x-1/2"
+                        : "absolute left-1.5 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground md:left-1/2 md:-translate-x-1/2"
+                    }
+                  >
+                    {isModern ? (
+                      <span className="w-2 h-2 bg-primary-foreground block" />
+                    ) : (
+                      <Heart className="h-3 w-3" />
+                    )}
                   </div>
-                  <div className="flex-1 rounded-2xl border border-border bg-background/80 p-6 shadow-sm">
+                  <div
+                    className={
+                      isModern
+                        ? "flex-1 rounded-none border border-border/60 bg-card shadow-sm p-6"
+                        : "flex-1 rounded-2xl border border-border/60 bg-card shadow-sm p-6"
+                    }
+                  >
                     <p className="text-xs uppercase tracking-widest text-muted-foreground">
                       {story.date || "Tanggal"}
                     </p>

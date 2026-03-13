@@ -216,13 +216,18 @@ function WeddingInvitationContent() {
     if (!value) return "";
     return decodeURIComponent(value).replace(/-/g, " ");
   }, [searchParams]);
+  const previewTheme = useMemo(() => {
+    const value = searchParams.get("theme");
+    return value ? value.trim() : "";
+  }, [searchParams]);
   const [data, setData] = useState<WeddingData>(defaultData);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     if (!previewId) {
-      setData(defaultData);
+      const themeOverride = previewTheme && themes[previewTheme as ThemeKey] ? previewTheme : defaultData.theme.theme;
+      setData({ ...defaultData, theme: { ...defaultData.theme, theme: themeOverride } });
       setIsHydrated(true);
       return;
     }
@@ -423,27 +428,29 @@ function WeddingInvitationContent() {
         weddingDate={weddingData.weddingDate}
         guestLabel={weddingData.guestLabel}
         guestName={weddingData.guestName}
+        theme={data.theme.theme}
       />
 
-      <CoupleSection bride={weddingData.bride} groom={weddingData.groom} />
+      <CoupleSection bride={weddingData.bride} groom={weddingData.groom} theme={data.theme.theme} />
 
-      <CountdownSection targetDate={weddingData.targetDate} />
+      <CountdownSection targetDate={weddingData.targetDate} theme={data.theme.theme} />
 
-      <EventSection events={weddingData.events} />
+      <EventSection events={weddingData.events} theme={data.theme.theme} />
 
       <GallerySection images={weddingData.gallery} />
 
-      <StorySection stories={weddingData.stories} />
+      <StorySection stories={weddingData.stories} theme={data.theme.theme} />
 
-      <RsvpSection guestName={weddingData.guestName || weddingData.guestLabel} />
+      <RsvpSection ownerSlug="preview" invitationSlug="preview" guestName={weddingData.guestName || weddingData.guestLabel} />
 
-      <WishesSection wishes={weddingData.wishes} />
+      <WishesSection wishes={weddingData.wishes} theme={data.theme.theme} />
 
-      <GiftSection gifts={weddingData.gifts} />
+      <GiftSection gifts={weddingData.gifts} theme={data.theme.theme} />
 
       <FooterSection
         brideName={weddingData.bride.name}
         groomName={weddingData.groom.name}
+        theme={data.theme.theme}
       />
     </main>
   );

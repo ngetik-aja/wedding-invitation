@@ -15,10 +15,12 @@ type Registry struct {
 	Register         *customerService.RegisterService
 	CustomerLogin    *customerService.LoginService
 	CustomerPayment  *customerService.PaymentService
+	CustomerPlan     *customerService.PlanService
 	AdminAuth        *adminService.AuthService
 	AdminUser        *adminService.UserService
 	AdminInvitation  *adminService.InvitationService
 	AdminCustomer    *adminService.CustomerService
+	AdminPayment     *adminService.PaymentService
 }
 
 func NewRegistry(repos repository.Registry, baseDomain string, jwtConfig auth.Config, midtransService *external.MidtransService) Registry {
@@ -28,10 +30,12 @@ func NewRegistry(repos repository.Registry, baseDomain string, jwtConfig auth.Co
 	registerSvc := &customerService.RegisterService{CustomerRepo: repos.Customer, InvitationRepo: repos.Invitation, BaseDomain: baseDomain}
 	loginSvc := &customerService.LoginService{CustomerRepo: repos.Customer, InvitationRepo: repos.Invitation}
 	paymentSvc := &customerService.PaymentService{CustomerRepo: repos.Customer, PlanRepo: repos.Plan, PaymentRepo: repos.Payment, Midtrans: midtransService}
+	planSvc := &customerService.PlanService{Repo: repos.Plan}
 	adminAuthSvc := &adminService.AuthService{Repo: repos.User, Config: jwtConfig}
 	adminUserSvc := &adminService.UserService{Repo: repos.User}
 	adminInvitationSvc := &adminService.InvitationService{Repo: repos.Invitation, CustomerRepo: repos.Customer, BaseDomain: baseDomain}
 	adminCustomerSvc := &adminService.CustomerService{Repo: repos.Customer}
+	adminPaymentSvc := &adminService.PaymentService{Repo: repos.Payment}
 
 	return Registry{
 		Customer:         customerSvc,
@@ -40,9 +44,11 @@ func NewRegistry(repos repository.Registry, baseDomain string, jwtConfig auth.Co
 		Register:         registerSvc,
 		CustomerLogin:    loginSvc,
 		CustomerPayment:  paymentSvc,
+		CustomerPlan:     planSvc,
 		AdminAuth:        adminAuthSvc,
 		AdminUser:        adminUserSvc,
 		AdminInvitation:  adminInvitationSvc,
 		AdminCustomer:    adminCustomerSvc,
+		AdminPayment:     adminPaymentSvc,
 	}
 }

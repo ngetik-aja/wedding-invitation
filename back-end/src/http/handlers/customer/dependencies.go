@@ -13,15 +13,17 @@ var (
 	loginService      *customerService.LoginService
 	invitationService *customerService.InvitationService
 	paymentService    *customerService.PaymentService
+	planService       *customerService.PlanService
 )
 
 var ErrHandlersNotConfigured = errors.New("customer handlers not configured")
 
-func ConfigureServices(register *customerService.RegisterService, login *customerService.LoginService, invitation *customerService.InvitationService, payment *customerService.PaymentService) {
+func ConfigureServices(register *customerService.RegisterService, login *customerService.LoginService, invitation *customerService.InvitationService, payment *customerService.PaymentService, plan *customerService.PlanService) {
 	registerService = register
 	loginService = login
 	invitationService = invitation
 	paymentService = payment
+	planService = plan
 }
 
 func writeServiceUnavailable(c *gin.Context) {

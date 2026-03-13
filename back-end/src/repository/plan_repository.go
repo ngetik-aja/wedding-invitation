@@ -27,3 +27,15 @@ func (r *PlanRepository) FindByCode(ctx context.Context, code string) (model.Pla
 	}
 	return plan, true, nil
 }
+
+func (r *PlanRepository) List(ctx context.Context) ([]model.Plan, error) {
+	items := make([]model.Plan, 0)
+	if err := r.DB.WithContext(ctx).
+		Model(&model.Plan{}).
+		Order("price_amount ASC, created_at ASC").
+		Find(&items).Error; err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}

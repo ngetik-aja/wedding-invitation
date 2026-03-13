@@ -420,17 +420,18 @@ export default function GuestInvitationPage() {
         weddingDate={weddingData.weddingDate}
         guestLabel={weddingData.guestLabel}
         guestName={weddingData.guestName}
+        theme={data.theme.theme}
       />
 
-      <CoupleSection bride={weddingData.bride} groom={weddingData.groom} />
+      <CoupleSection bride={weddingData.bride} groom={weddingData.groom} theme={data.theme.theme} />
 
-      <CountdownSection targetDate={weddingData.targetDate} />
+      <CountdownSection targetDate={weddingData.targetDate} theme={data.theme.theme} />
 
-      <EventSection events={weddingData.events} />
+      <EventSection events={weddingData.events} theme={data.theme.theme} />
 
       <GallerySection images={weddingData.gallery} />
 
-      <StorySection stories={weddingData.stories} />
+      <StorySection stories={weddingData.stories} theme={data.theme.theme} />
 
       <RsvpSection
         ownerSlug={owner}
@@ -439,13 +440,14 @@ export default function GuestInvitationPage() {
         onSubmitted={reloadWishes}
       />
 
-      <WishesSection wishes={weddingData.wishes} />
+      <WishesSection wishes={weddingData.wishes} theme={data.theme.theme} />
 
-      <GiftSection gifts={weddingData.gifts} />
+      <GiftSection gifts={weddingData.gifts} theme={data.theme.theme} />
 
       <FooterSection
         brideName={weddingData.bride.name}
         groomName={weddingData.groom.name}
+        theme={data.theme.theme}
       />
     </main>
   );

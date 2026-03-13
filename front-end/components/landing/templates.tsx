@@ -2,6 +2,7 @@
 
 import { Eye } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ const templates = [
     category: "Elegant",
     image: "/themes/elegant-rose.jpg",
     popular: true,
+    themeKey: "elegant",
   },
   {
     id: 2,
@@ -20,6 +22,7 @@ const templates = [
     category: "Rustic",
     image: "/themes/rustic-garden.jpg",
     popular: false,
+    themeKey: "rustic",
   },
   {
     id: 3,
@@ -27,6 +30,7 @@ const templates = [
     category: "Modern",
     image: "/themes/modern-minimalist.jpg",
     popular: true,
+    themeKey: "modern",
   },
   {
     id: 4,
@@ -34,6 +38,7 @@ const templates = [
     category: "Classic",
     image: "/themes/classic-gold.jpg",
     popular: false,
+    themeKey: "gold",
   },
   {
     id: 5,
@@ -41,6 +46,7 @@ const templates = [
     category: "Tropical",
     image: "/themes/tropical-paradise.jpg",
     popular: false,
+    themeKey: "tropical",
   },
   {
     id: 6,
@@ -48,6 +54,7 @@ const templates = [
     category: "Floral",
     image: "/themes/floral-dream.jpg",
     popular: true,
+    themeKey: "floral",
   },
 ];
 
@@ -111,9 +118,11 @@ export function Templates() {
                   <Badge className="absolute top-3 left-3">Populer</Badge>
                 )}
                 <div className="absolute inset-0 bg-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Button variant="secondary" size="sm">
-                    <Eye className="w-4 h-4 mr-2" />
-                    Preview
+                  <Button variant="secondary" size="sm" asChild>
+                    <Link href={`/preview?theme=${template.themeKey}`} target="_blank">
+                      <Eye className="w-4 h-4 mr-2" />
+                      Preview
+                    </Link>
                   </Button>
                 </div>
               </div>

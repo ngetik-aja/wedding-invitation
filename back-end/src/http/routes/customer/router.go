@@ -7,6 +7,7 @@ import (
 )
 
 func RegisterRoutes(group *gin.RouterGroup) {
+	group.GET("/plans", customerHandlers.ListPlansHandler)
 	group.POST("/register", customerHandlers.RegisterHandler)
 	group.POST("/login", customerHandlers.LoginHandler)
 	group.GET("/invitations/:id", customerHandlers.GetInvitationHandler)

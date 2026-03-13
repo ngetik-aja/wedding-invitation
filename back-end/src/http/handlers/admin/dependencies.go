@@ -13,14 +13,16 @@ var (
 	userService       *adminService.UserService
 	invitationService *adminService.InvitationService
 	customerService   *adminService.CustomerService
+	paymentService    *adminService.PaymentService
 	jwtConfig         auth.Config
 )
 
-func ConfigureServices(authSvc *adminService.AuthService, userSvc *adminService.UserService, invitationSvc *adminService.InvitationService, customerSvc *adminService.CustomerService, config auth.Config) {
+func ConfigureServices(authSvc *adminService.AuthService, userSvc *adminService.UserService, invitationSvc *adminService.InvitationService, customerSvc *adminService.CustomerService, paymentSvc *adminService.PaymentService, config auth.Config) {
 	authService = authSvc
 	userService = userSvc
 	invitationService = invitationSvc
 	customerService = customerSvc
+	paymentService = paymentSvc
 	jwtConfig = config
 }
 

@@ -55,10 +55,11 @@ const features = [
 export function Features() {
   return (
     <section id="features" className="py-20 px-6 bg-card">
+
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <p className="text-sm font-medium text-primary mb-3 uppercase tracking-wider">
+          <p className="text-sm font-medium text-primary mb-3 uppercase tracking-[0.15em]">
             Fitur Lengkap
           </p>
           <h2 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-4">
@@ -74,9 +75,9 @@ export function Features() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="p-6 rounded-lg bg-background border border-border hover:shadow-md transition-shadow"
+              className="group p-6 rounded-xl bg-background border border-border/60 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
             >
-              <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary to-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                 <feature.icon className="w-6 h-6 text-primary" />
               </div>
               <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>

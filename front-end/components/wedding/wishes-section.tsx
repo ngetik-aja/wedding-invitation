@@ -10,9 +10,12 @@ interface Wish {
 
 interface WishesSectionProps {
   wishes: Wish[];
+  theme?: string;
 }
 
-export function WishesSection({ wishes }: WishesSectionProps) {
+export function WishesSection({ wishes, theme }: WishesSectionProps) {
+  const isModern = theme === "modern";
+
   return (
     <section className="py-20 px-6">
       <div className="max-w-4xl mx-auto">
@@ -37,9 +40,13 @@ export function WishesSection({ wishes }: WishesSectionProps) {
             {wishes.map((wish, index) => (
               <div
                 key={index}
-                className="bg-card p-6 rounded-lg border border-border shadow-sm"
+                className={
+                  isModern
+                    ? "bg-card p-6 rounded-none border border-border border-l-2 border-l-primary/30 shadow-sm"
+                    : "bg-card p-6 rounded-xl border border-border border-l-2 border-l-primary/30 shadow-sm"
+                }
               >
-                <Quote className="w-6 h-6 text-primary/30 mb-3" />
+                <Quote className="w-6 h-6 text-primary/40 mb-3" />
                 <p className="text-foreground leading-relaxed mb-4">
                   {wish.message}
                 </p>

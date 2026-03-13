@@ -15,6 +15,7 @@ func RegisterRoutes(group *gin.RouterGroup) {
 	group.Use(adminMiddleware.Auth(adminHandlers.JwtConfig()))
 	group.GET("/me", adminHandlers.MeHandler)
 	group.GET("/customers", adminHandlers.ListCustomersHandler)
+	group.GET("/payments", adminHandlers.ListPaymentsHandler)
 	group.GET("/invitations", adminHandlers.ListInvitationsHandler)
 	group.POST("/invitations", adminHandlers.CreateInvitationHandler)
 	group.GET("/invitations/:id", adminHandlers.GetInvitationHandler)

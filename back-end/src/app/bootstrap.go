@@ -74,8 +74,8 @@ func buildHandler(ctx context.Context) (http.Handler, func() error, error) {
 	svc.AdminInvitation.Slugify = Slugify
 	svc.AdminInvitation.EnsureUniqueSlug = EnsureUniqueSlug
 
-	customerHandlers.ConfigureServices(svc.Register, svc.CustomerLogin, svc.Invitation, svc.CustomerPayment)
-	adminHandlers.ConfigureServices(svc.AdminAuth, svc.AdminUser, svc.AdminInvitation, svc.AdminCustomer, jwtConfig)
+	customerHandlers.ConfigureServices(svc.Register, svc.CustomerLogin, svc.Invitation, svc.CustomerPayment, svc.CustomerPlan)
+	adminHandlers.ConfigureServices(svc.AdminAuth, svc.AdminUser, svc.AdminInvitation, svc.AdminCustomer, svc.AdminPayment, jwtConfig)
 	publicHandlers.ConfigureServices(svc.Customer, svc.Invitation, svc.CustomerPayment, svc.PublicInvitation, baseDomain)
 
 	router := routes.SetupRouter(dbConn)

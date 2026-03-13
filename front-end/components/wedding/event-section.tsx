@@ -14,9 +14,12 @@ interface EventInfo {
 
 interface EventSectionProps {
   events: EventInfo[];
+  theme?: string;
 }
 
-export function EventSection({ events }: EventSectionProps) {
+export function EventSection({ events, theme }: EventSectionProps) {
+  const isModern = theme === "modern";
+
   return (
     <section className="py-20 px-6">
       <div className="max-w-4xl mx-auto">
@@ -33,7 +36,11 @@ export function EventSection({ events }: EventSectionProps) {
           {events.map((event, index) => (
             <div
               key={index}
-              className="bg-card p-8 rounded-lg border border-border shadow-sm"
+              className={
+                isModern
+                  ? "bg-card p-8 rounded-none border border-border shadow-sm"
+                  : "bg-card p-8 rounded-2xl border border-border/60 shadow-sm"
+              }
             >
               <h3 className="font-serif text-2xl text-foreground mb-6 text-center">
                 {event.title}
@@ -41,7 +48,13 @@ export function EventSection({ events }: EventSectionProps) {
 
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                  <div
+                    className={
+                      isModern
+                        ? "w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center"
+                        : "w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"
+                    }
+                  >
                     <Calendar className="w-5 h-5 text-primary" />
                   </div>
                   <div>
@@ -53,7 +66,13 @@ export function EventSection({ events }: EventSectionProps) {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                  <div
+                    className={
+                      isModern
+                        ? "w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center"
+                        : "w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"
+                    }
+                  >
                     <Clock className="w-5 h-5 text-primary" />
                   </div>
                   <div>
@@ -65,7 +84,13 @@ export function EventSection({ events }: EventSectionProps) {
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <div
+                    className={
+                      isModern
+                        ? "w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center shrink-0"
+                        : "w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0"
+                    }
+                  >
                     <MapPin className="w-5 h-5 text-primary" />
                   </div>
                   <div>

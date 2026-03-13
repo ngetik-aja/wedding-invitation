@@ -37,17 +37,29 @@ function formatPaymentStatus(status: string | null) {
   }
 }
 
+function PlanCardsSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="rounded-xl border border-border p-5 animate-pulse">
+          <div className="h-6 w-24 rounded bg-muted" />
+          <div className="mt-3 h-4 w-44 rounded bg-muted" />
+          <div className="mt-2 h-4 w-36 rounded bg-muted" />
+          <div className="mt-6 h-10 w-32 rounded bg-muted" />
+        </div>
+      ))}
+    </>
+  );
+}
+
 function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const preselectedPlan = useMemo(
-    () => getPlanByCode(searchParams.get("plan")),
-    [searchParams]
-  );
+  const preselectedPlanCode = useMemo(() => searchParams.get("plan"), [searchParams]);
 
   const [step, setStep] = useState<Step>("plan");
   const [customerId, setCustomerId] = useState<string | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(preselectedPlan || null);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [paymentResult, setPaymentResult] = useState<CreatePaymentResponse | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
 
@@ -66,6 +78,14 @@ function OnboardingContent() {
 
   const stepIndex = steps.findIndex((item) => item.key === step);
   const plans = plansQuery.data || [];
+
+  useEffect(() => {
+    if (!plans.length || !preselectedPlanCode) return;
+    setSelectedPlan((current) => {
+      if (current) return current;
+      return getPlanByCode(plans, preselectedPlanCode) || null;
+    });
+  }, [plans, preselectedPlanCode]);
 
   return (
     <main className="min-h-screen bg-background px-4 py-12">
@@ -116,31 +136,35 @@ function OnboardingContent() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-6 md:grid-cols-3">
-                {plans.map((plan) => {
-                  const isSelected = selectedPlan?.code === plan.code;
-                  return (
-                    <button
-                      key={plan.code}
-                      type="button"
-                      onClick={() => {
-                        setSelectedPlan(plan);
-                        setPaymentResult(null);
-                        setPaymentStatus(null);
-                      }}
-                      className={cn(
-                        "text-left rounded-xl border p-5 transition",
-                        isSelected ? "border-primary shadow-sm" : "border-border hover:border-primary/60"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">{plan.name}</h3>
-                        {plan.popular && <Badge variant="secondary">Populer</Badge>}
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
-                      <p className="mt-4 text-2xl font-bold">Rp {plan.priceLabel}</p>
-                    </button>
-                  );
-                })}
+                {plansQuery.isLoading && !plans.length ? (
+                  <PlanCardsSkeleton />
+                ) : (
+                  plans.map((plan) => {
+                    const isSelected = selectedPlan?.code === plan.code;
+                    return (
+                      <button
+                        key={plan.code}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlan(plan);
+                          setPaymentResult(null);
+                          setPaymentStatus(null);
+                        }}
+                        className={cn(
+                          "text-left rounded-xl border p-5 transition",
+                          isSelected ? "border-primary shadow-sm" : "border-border hover:border-primary/60"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-semibold">{plan.name}</h3>
+                          {plan.popular && <Badge variant="secondary">Populer</Badge>}
+                        </div>
+                        <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+                        <p className="mt-4 text-2xl font-bold">Rp {plan.priceLabel}</p>
+                      </button>
+                    );
+                  })
+                )}
               </div>
               {!plansQuery.isLoading && plans.length === 0 && (
                 <p className="text-sm text-muted-foreground">Belum ada data paket.</p>

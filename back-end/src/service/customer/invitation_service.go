@@ -2,20 +2,19 @@ package customer
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/proxima-labs/wedding-invitation-back-end/src/content"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/model"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/query"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
+	"github.com/proxima-labs/wedding-invitation-back-end/src/slug"
 )
 
 type InvitationService struct {
 	Repo         *repository.InvitationRepository
 	CustomerRepo *repository.CustomerRepository
-	BaseDomain   string
-	Slugify      func(string) string
 }
 
 func (s *InvitationService) GetByID(ctx context.Context, id string) (model.Invitation, bool, error) {
@@ -31,21 +30,18 @@ func (s *InvitationService) Update(ctx context.Context, id string, input reposit
 		return fmt.Errorf("invitation not found")
 	}
 
-	slug := strings.TrimSpace(input.Slug)
-	if s.Slugify != nil {
-		slug = strings.TrimSpace(s.Slugify(input.Slug))
+	inputSlug := strings.TrimSpace(slug.Slugify(input.Slug))
+	if inputSlug == "" {
+		inputSlug = strings.TrimSpace(current.Slug)
 	}
-	if slug == "" {
-		slug = strings.TrimSpace(current.Slug)
-	}
-	input.Slug = slug
+	input.Slug = inputSlug
 
 	if err := s.Repo.Update(ctx, id, input); err != nil {
 		return err
 	}
 
-	if s.CustomerRepo != nil && input.CustomerID != "" && slug != "" {
-		if err := s.syncDomainWithSlug(ctx, input.CustomerID, current.Slug, slug); err != nil {
+	if s.CustomerRepo != nil && input.CustomerID != "" && inputSlug != "" {
+		if err := s.syncDomainWithSlug(ctx, input.CustomerID, current.Slug, inputSlug); err != nil {
 			return err
 		}
 	}
@@ -58,11 +54,11 @@ func (s *InvitationService) GetPublishedContent(ctx context.Context, customerID,
 	if err != nil || !ok {
 		return nil, ok, err
 	}
-	content, err := decodeContent(inv)
+	decoded, err := content.Decode(inv.Content)
 	if err != nil {
 		return nil, false, err
 	}
-	return content, true, nil
+	return decoded, true, nil
 }
 
 func (s *InvitationService) normalizeListFilters(filters query.InvitationListFilters) query.InvitationListFilters {
@@ -94,27 +90,10 @@ func (s *InvitationService) syncDomainWithSlug(ctx context.Context, customerID, 
 		return err
 	}
 
-	oldCandidates := map[string]struct{}{oldSlug: {}}
-	baseDomain := strings.TrimSpace(s.BaseDomain)
-	if baseDomain != "" {
-		oldCandidates[oldSlug+"."+baseDomain] = struct{}{}
-	}
-
-	if _, shouldUpdate := oldCandidates[strings.TrimSpace(customer.Domain)]; !shouldUpdate {
+	if strings.TrimSpace(customer.Domain) != oldSlug {
 		return nil
 	}
 
-	newDomain := newSlug
-	return s.CustomerRepo.UpdateDomain(ctx, customerID, newDomain)
+	return s.CustomerRepo.UpdateDomain(ctx, customerID, newSlug)
 }
 
-func decodeContent(inv model.Invitation) (map[string]any, error) {
-	if len(inv.Content) == 0 {
-		return map[string]any{}, nil
-	}
-	var content map[string]any
-	if err := json.Unmarshal(inv.Content, &content); err != nil {
-		return nil, fmt.Errorf("invalid invitation content: %w", err)
-	}
-	return content, nil
-}

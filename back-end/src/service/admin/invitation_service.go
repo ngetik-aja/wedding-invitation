@@ -5,17 +5,16 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/proxima-labs/wedding-invitation-back-end/src/content"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/model"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/query"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
+	"github.com/proxima-labs/wedding-invitation-back-end/src/slug"
 )
 
 type InvitationService struct {
-	Repo             *repository.InvitationRepository
-	CustomerRepo     *repository.CustomerRepository
-	BaseDomain       string
-	Slugify          func(string) string
-	EnsureUniqueSlug func(context.Context, string, func(context.Context, string) (bool, error)) (string, error)
+	Repo         *repository.InvitationRepository
+	CustomerRepo *repository.CustomerRepository
 }
 
 var (
@@ -35,7 +34,7 @@ func (s *InvitationService) Create(ctx context.Context, input repository.Invitat
 	if !ok {
 		return "", ErrCustomerNotFound
 	}
-	if !isCustomerPaid(customer.Status) {
+	if !content.IsPaid(customer.Status) {
 		return "", ErrCustomerNotPaid
 	}
 	slug, err := s.ensureSlug(ctx, input.CustomerID, input.Slug, input.Title)
@@ -83,8 +82,7 @@ func (s *InvitationService) Update(ctx context.Context, id string, input reposit
 	if strings.TrimSpace(customer.Domain) != "" {
 		return nil
 	}
-	domain := buildCustomerDomain(input.Slug, s.BaseDomain)
-	return s.CustomerRepo.UpdateDomainIfEmpty(ctx, input.CustomerID, domain)
+	return s.CustomerRepo.UpdateDomainIfEmpty(ctx, input.CustomerID, input.Slug)
 }
 
 func (s *InvitationService) Delete(ctx context.Context, id string) error {
@@ -95,31 +93,13 @@ func (s *InvitationService) List(ctx context.Context, filters query.InvitationLi
 	return s.Repo.List(ctx, filters)
 }
 
-func buildCustomerDomain(slug string, baseDomain string) string {
-	_ = baseDomain
-	return strings.TrimSpace(slug)
-}
 
-func isCustomerPaid(status string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(status))
-	switch normalized {
-	case "paid":
-		return true
-	default:
-		return false
-	}
-}
-
-func (s *InvitationService) ensureSlug(ctx context.Context, customerID, slug, title string) (string, error) {
-	if s.Slugify == nil || s.EnsureUniqueSlug == nil {
-		return "", errors.New("slug helper not configured")
-	}
-
-	base := s.Slugify(slug)
+func (s *InvitationService) ensureSlug(ctx context.Context, customerID, inputSlug, title string) (string, error) {
+	base := slug.Slugify(inputSlug)
 	if base == "" {
-		base = s.Slugify(title)
+		base = slug.Slugify(title)
 	}
-	return s.EnsureUniqueSlug(ctx, base, func(ctx context.Context, candidate string) (bool, error) {
+	return slug.EnsureUnique(ctx, base, func(ctx context.Context, candidate string) (bool, error) {
 		return s.Repo.ExistsByCustomerAndSlug(ctx, customerID, candidate)
 	})
 }

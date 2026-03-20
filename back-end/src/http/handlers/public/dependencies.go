@@ -15,12 +15,18 @@ var (
 	publicInvitationSvc *customerService.PublicInvitationService
 )
 
-func ConfigureServices(customer *customerService.CustomerService, invitation *customerService.InvitationService, payment *customerService.PaymentService, publicInvitation *customerService.PublicInvitationService, domain string) {
-	_ = domain
-	tenantResolver = customer
-	invitationSvc = invitation
-	paymentSvc = payment
-	publicInvitationSvc = publicInvitation
+type Services struct {
+	Customer          *customerService.CustomerService
+	Invitation        *customerService.InvitationService
+	Payment           *customerService.PaymentService
+	PublicInvitation  *customerService.PublicInvitationService
+}
+
+func ConfigureServices(s Services) {
+	tenantResolver = s.Customer
+	invitationSvc = s.Invitation
+	paymentSvc = s.Payment
+	publicInvitationSvc = s.PublicInvitation
 }
 
 func writeServiceUnavailable(c *gin.Context) {

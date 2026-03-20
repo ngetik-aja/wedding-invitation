@@ -3,6 +3,7 @@ package routes
 import (
 	"log"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -27,6 +28,9 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(gin.Logger())
+	router.Use(middleware.HTTPSRedirect())
+	router.Use(middleware.MaxBodySize(5 << 20)) // 5 MB
+	router.Use(middleware.RateLimit(100, time.Minute))
 	router.Use(middleware.CORS())
 
 	healthHandler := &handlers.HealthHandler{DB: db}

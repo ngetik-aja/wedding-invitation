@@ -9,6 +9,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { Music, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { PlanGate } from "@/components/customize/plan-gate";
+import type { PlanCode, PlanLimits } from "@/lib/hooks/use-customer-plan";
 
 interface MusicFormProps {
   data: {
@@ -17,6 +19,8 @@ interface MusicFormProps {
     customMusicUrl: string;
   };
   onChange: (data: MusicFormProps["data"]) => void;
+  planLimits?: PlanLimits;
+  planCode?: PlanCode;
 }
 
 const musicOptions = [
@@ -61,7 +65,16 @@ const musicOptions = [
 
 type MusicOption = (typeof musicOptions)[number];
 
-export function MusicForm({ data, onChange }: MusicFormProps) {
+const defaultLimits: PlanLimits = {
+  gallery_photos: 4,
+  love_story: false,
+  music: false,
+  gifts: false,
+  custom_domain: false,
+  templates: "1",
+};
+
+export function MusicForm({ data, onChange, planLimits = defaultLimits, planCode = "none" }: MusicFormProps) {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -121,6 +134,7 @@ export function MusicForm({ data, onChange }: MusicFormProps) {
         </p>
       </div>
 
+      <PlanGate feature="music" planLimits={planLimits} planCode={planCode}>
       {/* Enable Music */}
       <Card>
         <CardHeader>
@@ -228,6 +242,7 @@ export function MusicForm({ data, onChange }: MusicFormProps) {
           </CardContent>
         </Card>
       )}
+      </PlanGate>
     </div>
   );
 }

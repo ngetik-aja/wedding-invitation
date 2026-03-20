@@ -30,10 +30,10 @@ const defaultData: WeddingData = {
     bridePhoto: "",
   },
   event: {
-    akadDate: "2025-03-15",
+    akadDate: "2027-03-15",
     akadTime: "10:00",
     akadEndTime: "11:30",
-    resepsiDate: "2025-03-15",
+    resepsiDate: "2027-03-15",
     resepsiTime: "12:00",
     resepsiEndTime: "15:00",
   },
@@ -356,7 +356,7 @@ export default function GuestInvitationPage() {
       photo: data.couple.groomPhoto,
     },
     weddingDate: formatDate(data.event.akadDate),
-    targetDate: data.event.akadDate ? new Date(`${data.event.akadDate}T${data.event.akadTime || "10:00"}:00`) : new Date("2025-03-15T10:00:00"),
+    targetDate: data.event.akadDate ? new Date(`${data.event.akadDate}T${data.event.akadTime || "10:00"}:00`) : new Date("2027-03-15T10:00:00"),
     guestLabel: "Bapak/Ibu/Saudara/i",
     guestName: guest,
     events: [

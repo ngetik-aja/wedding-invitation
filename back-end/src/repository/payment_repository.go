@@ -168,6 +168,31 @@ func (r *PaymentRepository) ListAdmin(ctx context.Context, filters AdminPaymentF
 	return rows, nil
 }
 
+type ActivePlanRow struct {
+	PlanCode     string `gorm:"column:plan_code"`
+	PlanFeatures []byte `gorm:"column:plan_features"`
+	PlanLimits   []byte `gorm:"column:plan_limits"`
+}
+
+func (r *PaymentRepository) GetActivePlanForCustomer(ctx context.Context, customerID string) (*ActivePlanRow, error) {
+	var row ActivePlanRow
+	err := r.DB.WithContext(ctx).
+		Table("payments").
+		Select("plans.code as plan_code, plans.features as plan_features, plans.limits as plan_limits").
+		Joins("JOIN plans ON plans.id = payments.plan_id").
+		Where("payments.customer_id = ? AND payments.status = 'paid'", customerID).
+		Order("payments.paid_at DESC").
+		Limit(1).
+		Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+	if row.PlanCode == "" {
+		return nil, nil
+	}
+	return &row, nil
+}
+
 func (r *PaymentRepository) SummaryAdmin(ctx context.Context) (AdminPaymentSummary, error) {
 	summary := AdminPaymentSummary{}
 

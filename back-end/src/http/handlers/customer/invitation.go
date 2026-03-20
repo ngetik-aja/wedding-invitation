@@ -5,16 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"regexp"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	httpRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request"
 	customerRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request/customer"
+	customerMiddleware "github.com/proxima-labs/wedding-invitation-back-end/src/http/middleware/customer"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
+	customerService "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
+	"github.com/proxima-labs/wedding-invitation-back-end/src/slug"
 )
-
-var invitationSlugRe = regexp.MustCompile(`[^a-z0-9-]+`)
 
 func GetInvitationHandler(c *gin.Context) {
 	if invitationService == nil {
@@ -63,6 +62,12 @@ func UpdateInvitationHandler(c *gin.Context) {
 		return
 	}
 
+	customerID, ok := customerMiddleware.GetCustomerID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	idReq, err := customerRequest.NewInvitationIDRequest(c)
 	if err != nil {
 		if errors.Is(err, customerRequest.ErrMissingID) {
@@ -88,8 +93,18 @@ func UpdateInvitationHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load invitation"})
 		return
 	}
-	if !ok || inv.CustomerID != req.CustomerID {
+	if !ok || inv.CustomerID != customerID {
 		c.JSON(http.StatusNotFound, gin.H{"error": "invitation not found"})
+		return
+	}
+
+	limits, err := planEnforcer.GetCustomerLimits(c.Request.Context(), customerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check plan"})
+		return
+	}
+	if err := customerService.ValidateContent(req.Content, limits); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error(), "code": "plan_limit_exceeded"})
 		return
 	}
 
@@ -118,17 +133,17 @@ func UpdateInvitationHandler(c *gin.Context) {
 		isPublished = *req.IsPublished
 	}
 
-	slug := deriveSlugFromContent(req.Content)
-	if slug == "" {
-		slug = req.Slug
+	derivedSlug := deriveSlugFromContent(req.Content, customerID)
+	if derivedSlug == "" {
+		derivedSlug = req.Slug
 	}
-	if slug == "" {
-		slug = inv.Slug
+	if derivedSlug == "" {
+		derivedSlug = inv.Slug
 	}
 
 	if err := invitationService.Update(c.Request.Context(), idReq.ID, repository.InvitationUpdateInput{
-		CustomerID:  inv.CustomerID,
-		Slug:        slug,
+		CustomerID:  customerID,
+		Slug:        derivedSlug,
 		Title:       title,
 		SearchName:  searchName,
 		EventDate:   eventDate,
@@ -143,52 +158,38 @@ func UpdateInvitationHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-func deriveSlugFromContent(content json.RawMessage) string {
-	if len(bytes.TrimSpace(content)) == 0 {
+func deriveSlugFromContent(raw json.RawMessage, customerID string) string {
+	if len(bytes.TrimSpace(raw)) == 0 {
 		return ""
 	}
 
 	var payload map[string]any
-	if err := json.Unmarshal(content, &payload); err != nil {
+	if err := json.Unmarshal(raw, &payload); err != nil {
 		return ""
 	}
 
-	coupleRaw, ok := payload["couple"]
-	if !ok {
+	couple, _ := payload["couple"].(map[string]any)
+	if couple == nil {
 		return ""
 	}
 
-	couple, ok := coupleRaw.(map[string]any)
-	if !ok {
+	groomName, _ := couple["groomName"].(string)
+	brideName, _ := couple["brideName"].(string)
+	groom := slug.Slugify(groomName)
+	brideSlug := slug.Slugify(brideName)
+	var base string
+	if groom != "" && brideSlug != "" {
+		base = groom + "-dan-" + brideSlug
+	} else if groom != "" {
+		base = groom
+	} else if brideSlug != "" {
+		base = brideSlug
+	}
+
+	if base == "" {
 		return ""
 	}
 
-	groom, _ := couple["groomName"].(string)
-	bride, _ := couple["brideName"].(string)
-
-	groomSlug := slugify(groom)
-	brideSlug := slugify(bride)
-
-	if groomSlug != "" && brideSlug != "" {
-		return groomSlug + "-" + brideSlug
-	}
-	if groomSlug != "" {
-		return groomSlug
-	}
-	if brideSlug != "" {
-		return brideSlug
-	}
-
-	return ""
+	return base + "-" + slug.ShortID(customerID)
 }
 
-func slugify(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	slug := strings.ReplaceAll(value, " ", "-")
-	slug = invitationSlugRe.ReplaceAllString(slug, "-")
-	slug = strings.Trim(slug, "-")
-	for strings.Contains(slug, "--") {
-		slug = strings.ReplaceAll(slug, "--", "-")
-	}
-	return slug
-}

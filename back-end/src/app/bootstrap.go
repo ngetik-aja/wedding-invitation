@@ -33,12 +33,13 @@ func buildHandler(ctx context.Context) (http.Handler, func() error, error) {
 		return nil, nil, fmt.Errorf("sql db: %w", err)
 	}
 
-	baseDomain := config.GetEnv("BASE_DOMAIN")
-	if baseDomain == "" {
-		log.Println("BASE_DOMAIN not set; custom-domain lookup only")
+	jwtSecret, err := config.RequireEnv("ADMIN_JWT_SECRET")
+	if err != nil {
+		_ = sqlDB.Close()
+		return nil, nil, err
 	}
 
-	jwtSecret, err := config.RequireEnv("ADMIN_JWT_SECRET")
+	customerJwtSecret, err := config.RequireEnv("CUSTOMER_JWT_SECRET")
 	if err != nil {
 		_ = sqlDB.Close()
 		return nil, nil, err
@@ -49,6 +50,13 @@ func buildHandler(ctx context.Context) (http.Handler, func() error, error) {
 		AccessSecret: []byte(jwtSecret),
 		AccessTTL:    15 * time.Minute,
 		RefreshTTL:   7 * 24 * time.Hour,
+	}
+
+	customerJwtConfig := auth.Config{
+		Issuer:       "wedding-invitation-customer",
+		AccessSecret: []byte(customerJwtSecret),
+		AccessTTL:    15 * time.Minute,
+		RefreshTTL:   30 * 24 * time.Hour,
 	}
 
 	midtransConfig := config.BuildMidtransConfig()
@@ -66,17 +74,31 @@ func buildHandler(ctx context.Context) (http.Handler, func() error, error) {
 	}
 
 	repos := repository.NewRegistry(dbConn)
-	svc := serviceBootstrap.NewRegistry(repos, baseDomain, jwtConfig, midtransService)
+	svc := serviceBootstrap.NewRegistry(repos, jwtConfig, customerJwtConfig, midtransService)
 
-	svc.Register.Slugify = Slugify
-	svc.Register.EnsureUniqueSlug = EnsureUniqueSlug
-	svc.Invitation.Slugify = Slugify
-	svc.AdminInvitation.Slugify = Slugify
-	svc.AdminInvitation.EnsureUniqueSlug = EnsureUniqueSlug
 
-	customerHandlers.ConfigureServices(svc.Register, svc.CustomerLogin, svc.Invitation, svc.CustomerPayment, svc.CustomerPlan)
-	adminHandlers.ConfigureServices(svc.AdminAuth, svc.AdminUser, svc.AdminInvitation, svc.AdminCustomer, svc.AdminPayment, jwtConfig)
-	publicHandlers.ConfigureServices(svc.Customer, svc.Invitation, svc.CustomerPayment, svc.PublicInvitation, baseDomain)
+	customerHandlers.ConfigureServices(customerHandlers.Services{
+		Auth:       svc.CustomerAuth,
+		Invitation: svc.Invitation,
+		Payment:    svc.CustomerPayment,
+		Plan:       svc.CustomerPlan,
+		Enforcer:   svc.CustomerPlanEnforce,
+		JwtConfig:  customerJwtConfig,
+	})
+	adminHandlers.ConfigureServices(adminHandlers.Services{
+		Auth:       svc.AdminAuth,
+		User:       svc.AdminUser,
+		Invitation: svc.AdminInvitation,
+		Customer:   svc.AdminCustomer,
+		Payment:    svc.AdminPayment,
+		JwtConfig:  jwtConfig,
+	})
+	publicHandlers.ConfigureServices(publicHandlers.Services{
+		Customer:         svc.Customer,
+		Invitation:       svc.Invitation,
+		Payment:          svc.CustomerPayment,
+		PublicInvitation: svc.PublicInvitation,
+	})
 
 	router := routes.SetupRouter(dbConn)
 

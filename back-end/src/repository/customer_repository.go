@@ -13,6 +13,7 @@ type CustomerRepository struct {
 }
 
 type CustomerCreateInput struct {
+	ID           string
 	FullName     string
 	Email        string
 	PasswordHash string
@@ -29,6 +30,7 @@ func (r *CustomerRepository) CreateTx(ctx context.Context, tx *gorm.DB, input Cu
 
 func (r *CustomerRepository) createWithDB(ctx context.Context, db *gorm.DB, input CustomerCreateInput) (string, error) {
 	customer := model.Customer{
+		ID:           input.ID,
 		FullName:     input.FullName,
 		Email:        input.Email,
 		PasswordHash: input.PasswordHash,

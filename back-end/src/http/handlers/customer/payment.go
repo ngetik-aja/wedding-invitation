@@ -1,12 +1,12 @@
 package customer
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	httpRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request"
 	customerRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request/customer"
+	customerMiddleware "github.com/proxima-labs/wedding-invitation-back-end/src/http/middleware/customer"
 	customerService "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
 )
 
@@ -16,7 +16,13 @@ func CreatePaymentHandler(c *gin.Context) {
 		return
 	}
 
-	req, payload, err := customerRequest.NewCreatePaymentRequest(c)
+	customerID, ok := customerMiddleware.GetCustomerID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	req, payload, err := customerRequest.NewCreatePaymentRequest(c, customerID)
 	if err != nil {
 		httpRequest.WriteValidationError(c, payload, err)
 		return
@@ -55,12 +61,14 @@ func PaymentProgressHandler(c *gin.Context) {
 		return
 	}
 
-	req, err := customerRequest.NewPaymentProgressRequest(c)
+	customerID, ok := customerMiddleware.GetCustomerID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	req, err := customerRequest.NewPaymentProgressRequest(c, customerID)
 	if err != nil {
-		if errors.Is(err, customerRequest.ErrMissingCustomerID) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "customer_id is required"})
-			return
-		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}

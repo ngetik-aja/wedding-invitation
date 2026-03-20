@@ -32,6 +32,17 @@ CREATE TABLE IF NOT EXISTS user_refresh_tokens (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS customer_refresh_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  user_agent TEXT,
+  ip_address TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code TEXT NOT NULL UNIQUE,
@@ -98,15 +109,15 @@ CREATE INDEX IF NOT EXISTS idx_wishes_invitation_id ON wishes(invitation_id);
 
 -- Seed default plans (idempotent)
 INSERT INTO plans (code, name, price_amount, currency, features, limits) VALUES
-  ('basic', 'Basic', 150000, 'IDR',
-   '{"templates": 1, "rsvp": true, "countdown": true}'::jsonb,
-   '{"gallery_photos": 4, "love_story": false, "music": false, "gifts": false, "custom_domain": false}'::jsonb),
-  ('premium', 'Premium', 350000, 'IDR',
-   '{"templates": "all", "rsvp": true, "countdown": true}'::jsonb,
-   '{"gallery_photos": 8, "love_story": true, "music": true, "gifts": true, "custom_domain": false}'::jsonb),
-  ('exclusive', 'Exclusive', 750000, 'IDR',
-   '{"templates": "all", "rsvp": true, "countdown": true, "reminder": true}'::jsonb,
-   '{"gallery_photos": 12, "love_story": true, "music": true, "gifts": true, "custom_domain": true}'::jsonb)
+  ('basic', 'Basic', 49000, 'IDR',
+   '[{"label":"1 template undangan","included":true},{"label":"Countdown timer","included":true},{"label":"RSVP tamu","included":true},{"label":"Galeri foto (maks. 4)","included":true},{"label":"Musik latar","included":false},{"label":"Love story","included":false},{"label":"Fitur hadiah","included":false},{"label":"Custom domain","included":false}]'::jsonb,
+   '{"gallery_photos": 4, "templates": "1"}'::jsonb),
+  ('premium', 'Premium', 99000, 'IDR',
+   '[{"label":"Semua template undangan","included":true},{"label":"Countdown timer","included":true},{"label":"RSVP tamu","included":true},{"label":"Galeri foto (maks. 8)","included":true},{"label":"Musik latar","included":true},{"label":"Love story","included":true},{"label":"Fitur hadiah","included":true},{"label":"Custom domain","included":false}]'::jsonb,
+   '{"gallery_photos": 8, "templates": "all"}'::jsonb),
+  ('exclusive', 'Exclusive', 150000, 'IDR',
+   '[{"label":"Semua template undangan","included":true},{"label":"Countdown timer","included":true},{"label":"RSVP tamu","included":true},{"label":"Galeri foto (maks. 12)","included":true},{"label":"Musik latar","included":true},{"label":"Love story","included":true},{"label":"Fitur hadiah","included":true},{"label":"Custom domain","included":true}]'::jsonb,
+   '{"gallery_photos": 12, "templates": "all"}'::jsonb)
 ON CONFLICT (code) DO UPDATE SET
   name = EXCLUDED.name,
   price_amount = EXCLUDED.price_amount,

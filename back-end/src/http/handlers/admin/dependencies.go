@@ -17,13 +17,22 @@ var (
 	jwtConfig         auth.Config
 )
 
-func ConfigureServices(authSvc *adminService.AuthService, userSvc *adminService.UserService, invitationSvc *adminService.InvitationService, customerSvc *adminService.CustomerService, paymentSvc *adminService.PaymentService, config auth.Config) {
-	authService = authSvc
-	userService = userSvc
-	invitationService = invitationSvc
-	customerService = customerSvc
-	paymentService = paymentSvc
-	jwtConfig = config
+type Services struct {
+	Auth       *adminService.AuthService
+	User       *adminService.UserService
+	Invitation *adminService.InvitationService
+	Customer   *adminService.CustomerService
+	Payment    *adminService.PaymentService
+	JwtConfig  auth.Config
+}
+
+func ConfigureServices(s Services) {
+	authService = s.Auth
+	userService = s.User
+	invitationService = s.Invitation
+	customerService = s.Customer
+	paymentService = s.Payment
+	jwtConfig = s.JwtConfig
 }
 
 func JwtConfig() auth.Config {

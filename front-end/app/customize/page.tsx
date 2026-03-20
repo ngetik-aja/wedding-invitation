@@ -43,6 +43,9 @@ import {
 } from "@/lib/session";
 import { getInvitationErrorMessage, useUpdateInvitation } from "@/lib/hooks/use-update-invitation";
 import { apiClient } from "@/lib/http";
+import { useCustomerPlan } from "@/lib/hooks/use-customer-plan";
+import { Sparkles, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 
 const sections = [
   { id: "couple", label: "Data Pengantin", icon: Users },
@@ -154,10 +157,10 @@ const defaultData: WeddingData = {
     bridePhoto: "",
   },
   event: {
-    akadDate: "2025-03-15",
+    akadDate: "2027-03-15",
     akadTime: "10:00",
     akadEndTime: "11:30",
-    resepsiDate: "2025-03-15",
+    resepsiDate: "2027-03-15",
     resepsiTime: "12:00",
     resepsiEndTime: "15:00",
   },
@@ -231,6 +234,7 @@ const [messageTemplate, setMessageTemplate] = useState(
   }, [previewGuest, session]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const updateInvitationMutation = useUpdateInvitation();
+  const { planCode, limits: planLimits, isPaid } = useCustomerPlan(session?.customerId);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const mobileIframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -362,7 +366,6 @@ const [messageTemplate, setMessageTemplate] = useState(
     try {
       await updateInvitationMutation.mutateAsync({
         invitationId: session.invitationId,
-        customerId: session.customerId,
         slug: slugToPersist,
         title: meta.title,
         eventDate: meta.eventDate,
@@ -558,6 +561,7 @@ const [messageTemplate, setMessageTemplate] = useState(
           <GalleryForm
             data={formData.gallery}
             onChange={(data) => updateFormData("gallery", data)}
+            planLimits={planLimits}
           />
         );
       case "story":
@@ -565,6 +569,8 @@ const [messageTemplate, setMessageTemplate] = useState(
           <StoryForm
             data={formData.story}
             onChange={(data) => updateFormData("story", data)}
+            planLimits={planLimits}
+            planCode={planCode}
           />
         );
       case "gift":
@@ -572,6 +578,8 @@ const [messageTemplate, setMessageTemplate] = useState(
           <GiftForm
             data={formData.gift}
             onChange={(data) => updateFormData("gift", data)}
+            planLimits={planLimits}
+            planCode={planCode}
           />
         );
       case "theme":
@@ -579,6 +587,7 @@ const [messageTemplate, setMessageTemplate] = useState(
           <ThemeForm
             data={formData.theme}
             onChange={(data) => updateFormData("theme", data)}
+            planLimits={planLimits}
           />
         );
       case "music":
@@ -586,6 +595,8 @@ const [messageTemplate, setMessageTemplate] = useState(
           <MusicForm
             data={formData.music}
             onChange={(data) => updateFormData("music", data)}
+            planLimits={planLimits}
+            planCode={planCode}
           />
         );
       default:
@@ -773,6 +784,55 @@ const [messageTemplate, setMessageTemplate] = useState(
           <div className="lg:flex">
             {/* Form Area */}
             <div className="flex-1 lg:max-w-2xl p-4 sm:p-6">
+              {/* Plan Banner */}
+              {isHydrated && session && (
+                <div className="mb-4">
+                  {planCode === "none" ? (
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
+                      <div className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
+                        <Sparkles className="h-4 w-4 shrink-0" />
+                        <span>Belum berlangganan paket. Aktifkan paket untuk menggunakan semua fitur.</span>
+                      </div>
+                      <Link
+                        href="/pricing"
+                        className="flex shrink-0 items-center gap-1 text-sm font-medium text-amber-800 underline-offset-4 hover:underline dark:text-amber-300"
+                      >
+                        Lihat Paket
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                  ) : planCode === "basic" ? (
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary px-4 py-3">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                        <span>
+                          <span className="font-medium text-foreground">Paket Basic</span>
+                          {" — "}
+                          Upgrade ke Premium untuk fitur lebih lengkap
+                        </span>
+                      </div>
+                      <Link
+                        href="/pricing"
+                        className="flex shrink-0 items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        Upgrade
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary px-4 py-3">
+                      <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="text-sm font-medium text-foreground capitalize">
+                        Paket {planCode.charAt(0).toUpperCase() + planCode.slice(1)}
+                      </span>
+                      {!isPaid && (
+                        <span className="text-sm text-muted-foreground">— aktif</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {saveError && (
                 <p className="mb-3 text-sm text-destructive">{saveError}</p>
               )}

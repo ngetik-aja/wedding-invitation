@@ -29,7 +29,6 @@ func NewInvitationIDRequest(c *gin.Context) (InvitationIDRequest, error) {
 }
 
 type invitationUpdatePayload struct {
-	CustomerID  string          `json:"customer_id" binding:"required"`
 	Slug        string          `json:"slug"`
 	Title       string          `json:"title"`
 	EventDate   string          `json:"event_date"`
@@ -39,7 +38,6 @@ type invitationUpdatePayload struct {
 }
 
 type UpdateInvitationRequest struct {
-	CustomerID        string
 	Slug              string
 	Title             string
 	ThemeKey          string
@@ -75,7 +73,6 @@ func NewUpdateInvitationRequest(c *gin.Context) (UpdateInvitationRequest, any, e
 	}
 
 	return UpdateInvitationRequest{
-		CustomerID:        strings.TrimSpace(payload.CustomerID),
 		Slug:              strings.TrimSpace(payload.Slug),
 		Title:             strings.TrimSpace(payload.Title),
 		ThemeKey:          strings.TrimSpace(payload.ThemeKey),

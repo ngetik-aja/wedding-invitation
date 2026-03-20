@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { Check } from "lucide-react";
+import { Check, Lock } from "lucide-react";
+import type { PlanLimits } from "@/lib/hooks/use-customer-plan";
 
 interface ThemeFormProps {
   data: {
@@ -13,6 +14,7 @@ interface ThemeFormProps {
     primaryColor: string;
   };
   onChange: (data: ThemeFormProps["data"]) => void;
+  planLimits?: PlanLimits;
 }
 
 const themes = [
@@ -73,8 +75,18 @@ const colorOptions = [
   { id: "sage", name: "Sage", color: "#9CAF88" },
 ];
 
-export function ThemeForm({ data, onChange }: ThemeFormProps) {
+const defaultLimits: PlanLimits = {
+  gallery_photos: 4,
+  love_story: false,
+  music: false,
+  gifts: false,
+  custom_domain: false,
+  templates: "1",
+};
+
+export function ThemeForm({ data, onChange, planLimits = defaultLimits }: ThemeFormProps) {
   const selectedTheme = themes.find((t) => t.id === data.theme);
+  const onlyElegant = planLimits.templates === "1";
 
   return (
     <div className="space-y-6">
@@ -99,18 +111,24 @@ export function ThemeForm({ data, onChange }: ThemeFormProps) {
             onValueChange={(value) => onChange({ ...data, theme: value })}
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
-            {themes.map((theme) => (
+            {themes.map((theme) => {
+              const isLocked = onlyElegant && theme.id !== "elegant";
+              return (
               <div key={theme.id} className="relative">
                 <RadioGroupItem
                   value={theme.id}
                   id={theme.id}
                   className="peer sr-only"
+                  disabled={isLocked}
                 />
                 <Label
                   htmlFor={theme.id}
                   className={cn(
-                    "block cursor-pointer rounded-xl border-2 border-border overflow-hidden transition-all hover:border-primary/50",
-                    "peer-data-[state=checked]:border-primary peer-data-[state=checked]:ring-2 peer-data-[state=checked]:ring-primary/20"
+                    "block rounded-xl border-2 border-border overflow-hidden transition-all",
+                    isLocked
+                      ? "cursor-not-allowed opacity-70"
+                      : "cursor-pointer hover:border-primary/50",
+                    !isLocked && "peer-data-[state=checked]:border-primary peer-data-[state=checked]:ring-2 peer-data-[state=checked]:ring-primary/20"
                   )}
                 >
                   <div className="relative aspect-[3/4] overflow-hidden">
@@ -120,15 +138,25 @@ export function ThemeForm({ data, onChange }: ThemeFormProps) {
                       fill
                       className="object-cover"
                     />
-                    {data.theme === theme.id && (
+                    {data.theme === theme.id && !isLocked && (
                       <div className="absolute top-3 right-3 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
                         <Check className="w-4 h-4 text-primary-foreground" />
+                      </div>
+                    )}
+                    {isLocked && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[2px]">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted border border-border">
+                          <Lock className="w-4 h-4 text-muted-foreground" />
+                        </div>
                       </div>
                     )}
                   </div>
                   <div className="p-4 bg-card">
                     <h3 className="font-medium text-foreground">{theme.name}</h3>
                     <p className="text-sm text-muted-foreground mt-0.5">{theme.description}</p>
+                    {isLocked && (
+                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">Upgrade ke Premium</p>
+                    )}
                     <div className="flex gap-2 mt-3">
                       {Object.values(theme.colors).map((color, index) => (
                         <div
@@ -141,7 +169,8 @@ export function ThemeForm({ data, onChange }: ThemeFormProps) {
                   </div>
                 </Label>
               </div>
-            ))}
+              );
+            })}
           </RadioGroup>
         </CardContent>
       </Card>

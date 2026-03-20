@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePlans } from "@/lib/hooks/use-plans";
-import { plans as fallbackPlans } from "@/lib/plans";
 
 function PricingCardsSkeleton() {
   return (
@@ -33,8 +32,7 @@ function PricingCardsSkeleton() {
 export function Pricing() {
   const plansQuery = usePlans();
   const planItems = plansQuery.data ?? [];
-  const isLoading = plansQuery.isLoading && planItems.length === 0;
-  const items = planItems.length ? planItems : fallbackPlans;
+  const isLoading = plansQuery.isLoading || planItems.length === 0;
 
   return (
     <section id="pricing" className="relative overflow-hidden px-6 py-24">
@@ -60,7 +58,7 @@ export function Pricing() {
           {isLoading ? (
             <PricingCardsSkeleton />
           ) : (
-            items.map((plan) => (
+            planItems.map((plan) => (
               <div
                 key={plan.code}
                 className={`group relative rounded-2xl p-6 lg:p-8 transition-all duration-300 ${

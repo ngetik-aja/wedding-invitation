@@ -75,7 +75,7 @@ function mapPlan(raw: NonNullable<PlansApiResponse["items"]>[number]): Plan {
 
 export async function getPlans() {
   try {
-    const { data } = await apiClient.get<PlansApiResponse>("/api/v1/customer/plans")
+    const { data } = await apiClient.get<PlansApiResponse>("/api/v1/public/plans")
     return (data.items || []).map(mapPlan)
   } catch {
     return []

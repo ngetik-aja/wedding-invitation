@@ -7,6 +7,7 @@ import (
 )
 
 func RegisterRoutes(group *gin.RouterGroup) {
+	group.GET("/plans", publicHandlers.ListPlansHandler)
 	group.POST("/payments/midtrans/webhook", publicHandlers.MidtransWebhookHandler)
 
 	publicWithTenant := group.Group("")

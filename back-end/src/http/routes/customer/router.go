@@ -11,7 +11,6 @@ import (
 
 func RegisterRoutes(group *gin.RouterGroup) {
 	authLimit := middleware.RateLimit(10, time.Minute)
-	group.GET("/plans", customerHandlers.ListPlansHandler)
 	group.POST("/register", authLimit, customerHandlers.RegisterHandler)
 	group.POST("/login", authLimit, customerHandlers.LoginHandler)
 	group.POST("/refresh", authLimit, customerHandlers.RefreshHandler)

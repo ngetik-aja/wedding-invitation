@@ -6,6 +6,7 @@ import (
 	adminService "github.com/proxima-labs/wedding-invitation-back-end/src/service/admin"
 	customerService "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/service/external"
+	publicService "github.com/proxima-labs/wedding-invitation-back-end/src/service/public"
 )
 
 type Registry struct {
@@ -16,6 +17,7 @@ type Registry struct {
 	CustomerPayment     *customerService.PaymentService
 	CustomerPlan        *customerService.PlanService
 	CustomerPlanEnforce *customerService.PlanEnforcer
+	PublicPlan          *publicService.PlanService
 	AdminAuth           *adminService.AuthService
 	AdminUser           *adminService.UserService
 	AdminInvitation     *adminService.InvitationService
@@ -35,6 +37,7 @@ func NewRegistry(repos repository.Registry, jwtConfig auth.Config, customerJwtCo
 	publicInvitationSvc := &customerService.PublicInvitationService{InvitationRepo: repos.Invitation, RsvpRepo: repos.Rsvp, WishRepo: repos.Wish}
 	paymentSvc := &customerService.PaymentService{CustomerRepo: repos.Customer, PlanRepo: repos.Plan, PaymentRepo: repos.Payment, Midtrans: midtransService}
 	planSvc := &customerService.PlanService{Repo: repos.Plan}
+	publicPlanSvc := &publicService.PlanService{Repo: repos.Plan}
 	planEnforcerSvc := &customerService.PlanEnforcer{PaymentRepo: repos.Payment}
 	adminAuthSvc := &adminService.AuthService{Repo: repos.User, Config: jwtConfig}
 	adminUserSvc := &adminService.UserService{Repo: repos.User}
@@ -50,6 +53,7 @@ func NewRegistry(repos repository.Registry, jwtConfig auth.Config, customerJwtCo
 		CustomerPayment:     paymentSvc,
 		CustomerPlan:        planSvc,
 		CustomerPlanEnforce: planEnforcerSvc,
+		PublicPlan:          publicPlanSvc,
 		AdminAuth:           adminAuthSvc,
 		AdminUser:           adminUserSvc,
 		AdminInvitation:     adminInvitationSvc,

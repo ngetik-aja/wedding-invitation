@@ -98,6 +98,7 @@ func buildHandler(ctx context.Context) (http.Handler, func() error, error) {
 		Invitation:       svc.Invitation,
 		Payment:          svc.CustomerPayment,
 		PublicInvitation: svc.PublicInvitation,
+		Plan:             svc.PublicPlan,
 	})
 
 	router := routes.SetupRouter(dbConn)

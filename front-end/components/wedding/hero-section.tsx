@@ -200,7 +200,7 @@ export function HeroSection({
   // elegant is the default (anything not matched above and not modern)
 
   return (
-    <section className={`relative min-h-screen flex flex-col items-center justify-center px-6 py-16 text-center ${isFloral ? "" : "overflow-hidden"}`}>
+    <section className={"relative min-h-screen flex flex-col items-center justify-center px-6 py-16 text-center overflow-hidden"}>
 
       {/* ── Backgrounds ── */}
 
@@ -492,13 +492,13 @@ export function HeroSection({
 
       ) : isFloral ? (
         /* ── Floral layout: open dreamy, NO frame, floating petal clusters ── */
+        <>
+          {/* Corner ornaments relative to section — no negative offsets needed */}
+          <FloralCornerOrnament className="top-0 left-0 !w-28 !h-28 opacity-80" />
+          <FloralCornerOrnament className="top-0 right-0 !w-28 !h-28 opacity-80 [transform:scaleX(-1)]" />
+          <FloralCornerOrnament className="bottom-0 left-0 !w-24 !h-24 opacity-60 [transform:scaleY(-1)]" />
+          <FloralCornerOrnament className="bottom-0 right-0 !w-24 !h-24 opacity-60 [transform:scale(-1)]" />
         <div className="relative max-w-lg mx-auto w-full px-6">
-          {/* Large petal clusters at corners — overflow-hidden removed on section so no clipping */}
-          <FloralCornerOrnament className="-top-8 -left-8 !w-28 !h-28 opacity-80" />
-          <FloralCornerOrnament className="-top-8 -right-8 !w-28 !h-28 opacity-80 [transform:scaleX(-1)]" />
-          <FloralCornerOrnament className="-bottom-8 -left-8 !w-24 !h-24 opacity-60 [transform:scaleY(-1)]" />
-          <FloralCornerOrnament className="-bottom-8 -right-8 !w-24 !h-24 opacity-60 [transform:scale(-1)]" />
-
           <div className="relative py-12 text-center">
             {(guestLabel || guestName) && (
               <div className="mb-10">
@@ -542,6 +542,7 @@ export function HeroSection({
             <FloralDivider size="lg" className="opacity-60" />
           </div>
         </div>
+        </>
 
       ) : (
         /* ── Elegant layout (default): double border, ornamental frame ── */

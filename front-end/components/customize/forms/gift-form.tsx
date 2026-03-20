@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, X, CreditCard } from "lucide-react";
+import { PlanGate } from "@/components/customize/plan-gate";
+import type { PlanCode, PlanLimits } from "@/lib/hooks/use-customer-plan";
 
 interface BankAccount {
   bankName: string;
@@ -19,7 +21,18 @@ interface GiftFormProps {
     banks: BankAccount[];
   };
   onChange: (data: GiftFormProps["data"]) => void;
+  planLimits?: PlanLimits;
+  planCode?: PlanCode;
 }
+
+const defaultLimits: PlanLimits = {
+  gallery_photos: 4,
+  love_story: false,
+  music: false,
+  gifts: false,
+  custom_domain: false,
+  templates: "1",
+};
 
 const bankOptions = [
   "BCA",
@@ -36,7 +49,7 @@ const bankOptions = [
   "LinkAja",
 ];
 
-export function GiftForm({ data, onChange }: GiftFormProps) {
+export function GiftForm({ data, onChange, planLimits = defaultLimits, planCode = "none" }: GiftFormProps) {
   const addBank = () => {
     onChange({
       banks: [...data.banks, { bankName: "", accountNumber: "", accountName: "" }],
@@ -63,6 +76,7 @@ export function GiftForm({ data, onChange }: GiftFormProps) {
         </p>
       </div>
 
+      <PlanGate feature="gifts" planLimits={planLimits} planCode={planCode}>
       <Card>
         <CardHeader>
           <CardTitle>Rekening & E-Wallet</CardTitle>
@@ -136,6 +150,7 @@ export function GiftForm({ data, onChange }: GiftFormProps) {
           </Button>
         </CardContent>
       </Card>
+      </PlanGate>
     </div>
   );
 }

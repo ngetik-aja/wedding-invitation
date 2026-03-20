@@ -1,4 +1,6 @@
 export type CustomerSession = {
+  token: string
+  refreshToken: string
   customerId: string
   invitationId: string
   slug: string
@@ -26,4 +28,10 @@ export function getCustomerSession(): CustomerSession | null {
 export function clearCustomerSession() {
   if (typeof window === "undefined") return
   localStorage.removeItem(SESSION_KEY)
+}
+
+export function updateCustomerSessionToken(token: string) {
+  const session = getCustomerSession()
+  if (!session) return
+  setCustomerSession({ ...session, token })
 }

@@ -13,6 +13,7 @@ type CustomerRepository struct {
 }
 
 type CustomerCreateInput struct {
+	ID           string
 	FullName     string
 	Email        string
 	PasswordHash string
@@ -29,6 +30,7 @@ func (r *CustomerRepository) CreateTx(ctx context.Context, tx *gorm.DB, input Cu
 
 func (r *CustomerRepository) createWithDB(ctx context.Context, db *gorm.DB, input CustomerCreateInput) (string, error) {
 	customer := model.Customer{
+		ID:           input.ID,
 		FullName:     input.FullName,
 		Email:        input.Email,
 		PasswordHash: input.PasswordHash,
@@ -88,6 +90,13 @@ func (r *CustomerRepository) UpdateDomain(ctx context.Context, id string, domain
 		Model(&model.Customer{}).
 		Where("id = ?", id).
 		Update("domain", domain).Error
+}
+
+func (r *CustomerRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+	return r.DB.WithContext(ctx).
+		Model(&model.Customer{}).
+		Where("id = ?", id).
+		Update("status", status).Error
 }
 
 func (r *CustomerRepository) ExistsByDomain(ctx context.Context, domain string) (bool, error) {

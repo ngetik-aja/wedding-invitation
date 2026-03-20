@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, X, Heart } from "lucide-react";
+import { PlanGate } from "@/components/customize/plan-gate";
+import type { PlanCode, PlanLimits } from "@/lib/hooks/use-customer-plan";
 
 interface StoryItem {
   title: string;
@@ -19,9 +21,20 @@ interface StoryFormProps {
     stories: StoryItem[];
   };
   onChange: (data: StoryFormProps["data"]) => void;
+  planLimits?: PlanLimits;
+  planCode?: PlanCode;
 }
 
-export function StoryForm({ data, onChange }: StoryFormProps) {
+const defaultLimits: PlanLimits = {
+  gallery_photos: 4,
+  love_story: false,
+  music: false,
+  gifts: false,
+  custom_domain: false,
+  templates: "1",
+};
+
+export function StoryForm({ data, onChange, planLimits = defaultLimits, planCode = "none" }: StoryFormProps) {
   const addStory = () => {
     onChange({
       stories: [...data.stories, { title: "", date: "", description: "" }],
@@ -48,6 +61,7 @@ export function StoryForm({ data, onChange }: StoryFormProps) {
         </p>
       </div>
 
+      <PlanGate feature="love_story" planLimits={planLimits} planCode={planCode}>
       <Card>
         <CardHeader>
           <CardTitle>Timeline Perjalanan Cinta</CardTitle>
@@ -114,6 +128,7 @@ export function StoryForm({ data, onChange }: StoryFormProps) {
           </Button>
         </CardContent>
       </Card>
+      </PlanGate>
     </div>
   );
 }

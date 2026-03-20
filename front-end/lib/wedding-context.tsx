@@ -211,10 +211,10 @@ const defaultData: WeddingData = {
     bridePhoto: "",
   },
   event: {
-    akadDate: "2025-03-15",
+    akadDate: "2027-03-15",
     akadTime: "10:00",
     akadEndTime: "11:30",
-    resepsiDate: "2025-03-15",
+    resepsiDate: "2027-03-15",
     resepsiTime: "12:00",
     resepsiEndTime: "15:00",
   },

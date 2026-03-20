@@ -6,19 +6,34 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, X, ImageIcon } from "lucide-react";
+import { GalleryLimitBadge } from "@/components/customize/gallery-limit-badge";
+import type { PlanLimits } from "@/lib/hooks/use-customer-plan";
 
 interface GalleryFormProps {
   data: {
     photos: string[];
   };
   onChange: (data: GalleryFormProps["data"]) => void;
+  planLimits?: PlanLimits;
 }
 
-export function GalleryForm({ data, onChange }: GalleryFormProps) {
+const defaultLimits: PlanLimits = {
+  gallery_photos: 4,
+  love_story: false,
+  music: false,
+  gifts: false,
+  custom_domain: false,
+  templates: "1",
+};
+
+export function GalleryForm({ data, onChange, planLimits = defaultLimits }: GalleryFormProps) {
   const [newUrl, setNewUrl] = useState("");
 
+  const maxAllowed = planLimits.gallery_photos;
+  const atLimit = data.photos.length >= maxAllowed;
+
   const addPhoto = () => {
-    if (newUrl.trim()) {
+    if (newUrl.trim() && !atLimit) {
       onChange({ photos: [...data.photos, newUrl.trim()] });
       setNewUrl("");
     }
@@ -40,10 +55,15 @@ export function GalleryForm({ data, onChange }: GalleryFormProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Foto Galeri</CardTitle>
-          <CardDescription>
-            Tambahkan URL foto dari layanan hosting gambar (imgur, cloudinary, dll)
-          </CardDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>Foto Galeri</CardTitle>
+              <CardDescription>
+                Tambahkan URL foto dari layanan hosting gambar (imgur, cloudinary, dll)
+              </CardDescription>
+            </div>
+            <GalleryLimitBadge currentCount={data.photos.length} maxAllowed={maxAllowed} />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Add Photo Input */}
@@ -53,12 +73,18 @@ export function GalleryForm({ data, onChange }: GalleryFormProps) {
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addPhoto()}
+              disabled={atLimit}
             />
-            <Button onClick={addPhoto} type="button">
+            <Button onClick={addPhoto} type="button" disabled={atLimit}>
               <Plus className="w-4 h-4 mr-2" />
               Tambah
             </Button>
           </div>
+          {atLimit && (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Batas foto paket Anda telah tercapai. Upgrade untuk menambah lebih banyak foto.
+            </p>
+          )}
 
           {/* Photo Grid */}
           {data.photos.length > 0 ? (

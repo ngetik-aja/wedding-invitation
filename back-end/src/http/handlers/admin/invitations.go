@@ -4,30 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers/validation"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/query"
+	httpRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request"
+	adminRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request/admin"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
-	adminsvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/admin"
+	adminService "github.com/proxima-labs/wedding-invitation-back-end/src/service/admin"
 )
-
-type InvitationHandler struct {
-	Service *adminsvc.InvitationService
-}
-
-type invitationPayload struct {
-	CustomerID  string          `json:"customer_id" binding:"required"`
-	Slug        string          `json:"slug"`
-	Title       string          `json:"title"`
-	SearchName  string          `json:"search_name"`
-	EventDate   string          `json:"event_date"`
-	ThemeKey    string          `json:"theme_key"`
-	IsPublished bool            `json:"is_published"`
-	Content     json.RawMessage `json:"content" binding:"required"`
-}
 
 type invitationResponse struct {
 	ID          string          `json:"id"`
@@ -64,52 +48,31 @@ type invitationListResponse struct {
 	Offset int                  `json:"offset"`
 }
 
-func (h *InvitationHandler) ListInvitations(c *gin.Context) {
-	filters := query.InvitationListFilters{}
-	filters.CustomerID = c.Query("customer_id")
-	filters.Query = c.Query("q")
-	filters.Status = c.Query("status")
-	if filters.Status != "" && filters.Status != "published" && filters.Status != "draft" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status"})
+func ListInvitationsHandler(c *gin.Context) {
+	if !ensureService(c, invitationService) {
 		return
 	}
 
-	if value := c.Query("date_from"); value != "" {
-		parsed, err := time.Parse("2006-01-02", value)
-		if err != nil {
+	req, err := adminRequest.NewListInvitationsRequest(c)
+	if err != nil {
+		switch {
+		case errors.Is(err, adminRequest.ErrInvalidStatus):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status"})
+		case errors.Is(err, adminRequest.ErrInvalidDateFrom):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date_from"})
-			return
-		}
-		filters.DateFrom = &parsed
-	}
-	if value := c.Query("date_to"); value != "" {
-		parsed, err := time.Parse("2006-01-02", value)
-		if err != nil {
+		case errors.Is(err, adminRequest.ErrInvalidDateTo):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date_to"})
-			return
-		}
-		filters.DateTo = &parsed
-	}
-	if value := c.Query("limit"); value != "" {
-		limit, err := strconv.Atoi(value)
-		if err != nil {
+		case errors.Is(err, adminRequest.ErrInvalidLimit):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
-			return
-		}
-		filters.Limit = limit
-	}
-	if value := c.Query("offset"); value != "" {
-		offset, err := strconv.Atoi(value)
-		if err != nil {
+		case errors.Is(err, adminRequest.ErrInvalidOffset):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset"})
-			return
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		}
-		filters.Offset = offset
+		return
 	}
 
-	filters = h.Service.NormalizeListFilters(filters)
-
-	items, err := h.Service.ListWithCustomers(c.Request.Context(), filters)
+	items, err := invitationService.ListWithCustomers(c.Request.Context(), req.Filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list invitations"})
 		return
@@ -135,54 +98,34 @@ func (h *InvitationHandler) ListInvitations(c *gin.Context) {
 
 	c.JSON(http.StatusOK, invitationListResponse{
 		Items:  responseItems,
-		Limit:  filters.Limit,
-		Offset: filters.Offset,
+		Limit:  req.Filters.Limit,
+		Offset: req.Filters.Offset,
 	})
 }
 
-func (h *InvitationHandler) CreateInvitation(c *gin.Context) {
-	var payload invitationPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		validation.WriteValidationError(c, payload, err)
+func CreateInvitationHandler(c *gin.Context) {
+	if !ensureService(c, invitationService) {
 		return
 	}
 
-	if err := validation.ValidateStruct(payload); err != nil {
-		validation.WriteValidationError(c, payload, err)
-		return
-	}
-
-	if payload.SearchName == "" {
-		payload.SearchName = payload.Title
-	}
-
-	var eventDate *time.Time
-	if payload.EventDate != "" {
-		parsed, err := time.Parse("2006-01-02", payload.EventDate)
-		if err != nil {
+	req, payload, err := adminRequest.NewCreateInvitationRequest(c)
+	if err != nil {
+		if errors.Is(err, adminRequest.ErrInvalidEventDate) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event_date"})
 			return
 		}
-		eventDate = &parsed
+		httpRequest.WriteValidationError(c, payload, err)
+		return
 	}
 
-	id, err := h.Service.Create(c.Request.Context(), repository.InvitationCreateInput{
-		CustomerID:  payload.CustomerID,
-		Slug:        payload.Slug,
-		Title:       payload.Title,
-		SearchName:  payload.SearchName,
-		EventDate:   eventDate,
-		ThemeKey:    payload.ThemeKey,
-		IsPublished: payload.IsPublished,
-		Content:     payload.Content,
-	})
+	id, err := invitationService.Create(c.Request.Context(), req.Input)
 	if err != nil {
 		switch {
-		case errors.Is(err, adminsvc.ErrCustomerNotFound):
+		case errors.Is(err, adminService.ErrCustomerNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "customer not found"})
-		case errors.Is(err, adminsvc.ErrCustomerNotPaid):
+		case errors.Is(err, adminService.ErrCustomerNotPaid):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "customer has no active payment"})
-		case errors.Is(err, adminsvc.ErrCustomerRepoNotConfigured):
+		case errors.Is(err, adminService.ErrCustomerRepoNotConfigured):
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "customer repository not configured"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create invitation"})
@@ -193,14 +136,22 @@ func (h *InvitationHandler) CreateInvitation(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"id": id})
 }
 
-func (h *InvitationHandler) GetInvitation(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+func GetInvitationHandler(c *gin.Context) {
+	if !ensureService(c, invitationService) {
 		return
 	}
 
-	inv, ok, err := h.Service.GetByID(c.Request.Context(), id)
+	req, err := adminRequest.NewInvitationIDRequest(c)
+	if err != nil {
+		if errors.Is(err, adminRequest.ErrMissingID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	inv, ok, err := invitationService.GetByID(c.Request.Context(), req.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load invitation"})
 		return
@@ -225,47 +176,40 @@ func (h *InvitationHandler) GetInvitation(c *gin.Context) {
 	})
 }
 
-func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+func UpdateInvitationHandler(c *gin.Context) {
+	if !ensureService(c, invitationService) {
 		return
 	}
 
-	var payload invitationPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		validation.WriteValidationError(c, payload, err)
+	idReq, err := adminRequest.NewInvitationIDRequest(c)
+	if err != nil {
+		if errors.Is(err, adminRequest.ErrMissingID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
 
-	if err := validation.ValidateStruct(payload); err != nil {
-		validation.WriteValidationError(c, payload, err)
-		return
-	}
-
-	if payload.SearchName == "" {
-		payload.SearchName = payload.Title
-	}
-
-	var eventDate *time.Time
-	if payload.EventDate != "" {
-		parsed, err := time.Parse("2006-01-02", payload.EventDate)
-		if err != nil {
+	req, payload, err := adminRequest.NewUpdateInvitationRequest(c)
+	if err != nil {
+		if errors.Is(err, adminRequest.ErrInvalidEventDate) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event_date"})
 			return
 		}
-		eventDate = &parsed
+		httpRequest.WriteValidationError(c, payload, err)
+		return
 	}
 
-	err := h.Service.Update(c.Request.Context(), id, repository.InvitationUpdateInput{
-		CustomerID:  payload.CustomerID,
-		Slug:        payload.Slug,
-		Title:       payload.Title,
-		SearchName:  payload.SearchName,
-		EventDate:   eventDate,
-		ThemeKey:    payload.ThemeKey,
-		IsPublished: payload.IsPublished,
-		Content:     payload.Content,
+	err = invitationService.Update(c.Request.Context(), idReq.ID, repository.InvitationUpdateInput{
+		CustomerID:  req.Input.CustomerID,
+		Slug:        req.Input.Slug,
+		Title:       req.Input.Title,
+		SearchName:  req.Input.SearchName,
+		EventDate:   req.Input.EventDate,
+		ThemeKey:    req.Input.ThemeKey,
+		IsPublished: req.Input.IsPublished,
+		Content:     req.Input.Content,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update invitation"})
@@ -275,14 +219,22 @@ func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-func (h *InvitationHandler) DeleteInvitation(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+func DeleteInvitationHandler(c *gin.Context) {
+	if !ensureService(c, invitationService) {
 		return
 	}
 
-	if err := h.Service.Delete(c.Request.Context(), id); err != nil {
+	req, err := adminRequest.NewInvitationIDRequest(c)
+	if err != nil {
+		if errors.Is(err, adminRequest.ErrMissingID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	if err := invitationService.Delete(c.Request.Context(), req.ID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete invitation"})
 		return
 	}

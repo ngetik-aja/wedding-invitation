@@ -61,6 +61,8 @@ function RegisterPageContent() {
                 {
                   onSuccess: (data) => {
                     setCustomerSession({
+                      token: data.token,
+                      refreshToken: data.refresh_token,
                       customerId: data.customer_id,
                       invitationId: data.invitation_id,
                       slug: data.slug,

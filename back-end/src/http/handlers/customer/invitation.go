@@ -3,39 +3,35 @@ package customer
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
-	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/http/handlers/validation"
+	httpRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request"
+	customerRequest "github.com/proxima-labs/wedding-invitation-back-end/src/http/request/customer"
+	customerMiddleware "github.com/proxima-labs/wedding-invitation-back-end/src/http/middleware/customer"
 	"github.com/proxima-labs/wedding-invitation-back-end/src/repository"
-	customersvc "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
-	"github.com/proxima-labs/wedding-invitation-back-end/src/service/shared"
+	customerService "github.com/proxima-labs/wedding-invitation-back-end/src/service/customer"
+	"github.com/proxima-labs/wedding-invitation-back-end/src/slug"
 )
 
-type InvitationHandler struct {
-	Service *customersvc.InvitationService
-}
-
-type invitationUpdatePayload struct {
-	CustomerID  string          `json:"customer_id" binding:"required"`
-	Slug        string          `json:"slug"`
-	Title       string          `json:"title"`
-	EventDate   string          `json:"event_date"`
-	ThemeKey    string          `json:"theme_key"`
-	IsPublished *bool           `json:"is_published"`
-	Content     json.RawMessage `json:"content" binding:"required"`
-}
-
-func (h *InvitationHandler) GetInvitation(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+func GetInvitationHandler(c *gin.Context) {
+	if invitationService == nil {
+		writeServiceUnavailable(c)
 		return
 	}
 
-	inv, ok, err := h.Service.GetByID(c.Request.Context(), id)
+	req, err := customerRequest.NewInvitationIDRequest(c)
+	if err != nil {
+		if errors.Is(err, customerRequest.ErrMissingID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	inv, ok, err := invitationService.GetByID(c.Request.Context(), req.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load invitation"})
 		return
@@ -60,52 +56,69 @@ func (h *InvitationHandler) GetInvitation(c *gin.Context) {
 	})
 }
 
-func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+func UpdateInvitationHandler(c *gin.Context) {
+	if invitationService == nil {
+		writeServiceUnavailable(c)
 		return
 	}
 
-	var payload invitationUpdatePayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		validation.WriteValidationError(c, payload, err)
+	customerID, ok := customerMiddleware.GetCustomerID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	if err := validation.ValidateStruct(payload); err != nil {
-		validation.WriteValidationError(c, payload, err)
+	idReq, err := customerRequest.NewInvitationIDRequest(c)
+	if err != nil {
+		if errors.Is(err, customerRequest.ErrMissingID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing id"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
 
-	inv, ok, err := h.Service.GetByID(c.Request.Context(), id)
+	req, payload, err := customerRequest.NewUpdateInvitationRequest(c)
+	if err != nil {
+		if errors.Is(err, customerRequest.ErrInvalidEventDate) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event_date"})
+			return
+		}
+		httpRequest.WriteValidationError(c, payload, err)
+		return
+	}
+
+	inv, ok, err := invitationService.GetByID(c.Request.Context(), idReq.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load invitation"})
 		return
 	}
-	if !ok || inv.CustomerID != payload.CustomerID {
+	if !ok || inv.CustomerID != customerID {
 		c.JSON(http.StatusNotFound, gin.H{"error": "invitation not found"})
 		return
 	}
 
-	var eventDate *time.Time
-	if payload.EventDate != "" {
-		parsed, err := time.Parse("2006-01-02", payload.EventDate)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event_date"})
-			return
-		}
-		eventDate = &parsed
-	} else {
-		eventDate = inv.EventDate
+	limits, err := planEnforcer.GetCustomerLimits(c.Request.Context(), customerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check plan"})
+		return
+	}
+	if err := customerService.ValidateContent(req.Content, limits); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error(), "code": "plan_limit_exceeded"})
+		return
 	}
 
-	title := strings.TrimSpace(payload.Title)
+	eventDate := inv.EventDate
+	if req.HasEventDateInput {
+		eventDate = req.EventDate
+	}
+
+	title := req.Title
 	if title == "" {
 		title = inv.Title
 	}
 
-	themeKey := strings.TrimSpace(payload.ThemeKey)
+	themeKey := req.ThemeKey
 	if themeKey == "" {
 		themeKey = inv.ThemeKey
 	}
@@ -116,36 +129,27 @@ func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
 	}
 
 	isPublished := inv.IsPublished
-	if payload.IsPublished != nil {
-		isPublished = *payload.IsPublished
+	if req.IsPublished != nil {
+		isPublished = *req.IsPublished
 	}
 
-	content := payload.Content
-	if len(bytes.TrimSpace(content)) == 0 {
-		content = []byte("{}")
+	derivedSlug := deriveSlugFromContent(req.Content, customerID)
+	if derivedSlug == "" {
+		derivedSlug = req.Slug
+	}
+	if derivedSlug == "" {
+		derivedSlug = inv.Slug
 	}
 
-	// Priority slug source:
-	// 1) derive from couple names in content
-	// 2) explicit slug from payload
-	// 3) existing invitation slug
-	slug := deriveSlugFromContent(content)
-	if slug == "" {
-		slug = strings.TrimSpace(payload.Slug)
-	}
-	if slug == "" {
-		slug = inv.Slug
-	}
-
-	if err := h.Service.Update(c.Request.Context(), id, repository.InvitationUpdateInput{
-		CustomerID:  inv.CustomerID,
-		Slug:        slug,
+	if err := invitationService.Update(c.Request.Context(), idReq.ID, repository.InvitationUpdateInput{
+		CustomerID:  customerID,
+		Slug:        derivedSlug,
 		Title:       title,
 		SearchName:  searchName,
 		EventDate:   eventDate,
 		ThemeKey:    themeKey,
 		IsPublished: isPublished,
-		Content:     content,
+		Content:     req.Content,
 	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update invitation"})
 		return
@@ -154,41 +158,38 @@ func (h *InvitationHandler) UpdateInvitation(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-func deriveSlugFromContent(content json.RawMessage) string {
-	if len(bytes.TrimSpace(content)) == 0 {
+func deriveSlugFromContent(raw json.RawMessage, customerID string) string {
+	if len(bytes.TrimSpace(raw)) == 0 {
 		return ""
 	}
 
 	var payload map[string]any
-	if err := json.Unmarshal(content, &payload); err != nil {
+	if err := json.Unmarshal(raw, &payload); err != nil {
 		return ""
 	}
 
-	coupleRaw, ok := payload["couple"]
-	if !ok {
+	couple, _ := payload["couple"].(map[string]any)
+	if couple == nil {
 		return ""
 	}
 
-	couple, ok := coupleRaw.(map[string]any)
-	if !ok {
+	groomName, _ := couple["groomName"].(string)
+	brideName, _ := couple["brideName"].(string)
+	groom := slug.Slugify(groomName)
+	brideSlug := slug.Slugify(brideName)
+	var base string
+	if groom != "" && brideSlug != "" {
+		base = groom + "-dan-" + brideSlug
+	} else if groom != "" {
+		base = groom
+	} else if brideSlug != "" {
+		base = brideSlug
+	}
+
+	if base == "" {
 		return ""
 	}
 
-	groom, _ := couple["groomName"].(string)
-	bride, _ := couple["brideName"].(string)
-
-	groomSlug := shared.Slugify(strings.TrimSpace(groom))
-	brideSlug := shared.Slugify(strings.TrimSpace(bride))
-
-	if groomSlug != "" && brideSlug != "" {
-		return groomSlug + "-" + brideSlug
-	}
-	if groomSlug != "" {
-		return groomSlug
-	}
-	if brideSlug != "" {
-		return brideSlug
-	}
-
-	return ""
+	return base + "-" + slug.ShortID(customerID)
 }
+

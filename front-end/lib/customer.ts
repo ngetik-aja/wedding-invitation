@@ -12,6 +12,8 @@ export type RegisterPayload = {
 }
 
 export type RegisterResponse = {
+  token: string
+  refresh_token: string
   customer_id: string
   invitation_id: string
   slug: string
@@ -39,6 +41,8 @@ export type LoginPayload = {
 }
 
 export type LoginResponse = {
+  token: string
+  refresh_token: string
   customer_id: string
   invitation_id: string
   slug: string

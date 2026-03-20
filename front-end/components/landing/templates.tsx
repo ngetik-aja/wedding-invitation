@@ -12,7 +12,7 @@ const templates = [
     id: 1,
     name: "Elegant Rose",
     category: "Elegant",
-    image: "/themes/elegant-rose.jpg",
+    image: "/themes/elegant-rose.png",
     popular: true,
     themeKey: "elegant",
   },
@@ -20,7 +20,7 @@ const templates = [
     id: 2,
     name: "Rustic Garden",
     category: "Rustic",
-    image: "/themes/rustic-garden.jpg",
+    image: "/themes/rustic-garden.png",
     popular: false,
     themeKey: "rustic",
   },
@@ -28,7 +28,7 @@ const templates = [
     id: 3,
     name: "Modern Minimalist",
     category: "Modern",
-    image: "/themes/modern-minimalist.jpg",
+    image: "/themes/modern-minimalist.png",
     popular: true,
     themeKey: "modern",
   },
@@ -36,7 +36,7 @@ const templates = [
     id: 4,
     name: "Classic Gold",
     category: "Classic",
-    image: "/themes/classic-gold.jpg",
+    image: "/themes/classic-gold.png",
     popular: false,
     themeKey: "gold",
   },
@@ -44,7 +44,7 @@ const templates = [
     id: 5,
     name: "Tropical Paradise",
     category: "Tropical",
-    image: "/themes/tropical-paradise.jpg",
+    image: "/themes/tropical-paradise.png",
     popular: false,
     themeKey: "tropical",
   },
@@ -52,7 +52,7 @@ const templates = [
     id: 6,
     name: "Floral Dream",
     category: "Floral",
-    image: "/themes/floral-dream.jpg",
+    image: "/themes/floral-dream.png",
     popular: true,
     themeKey: "floral",
   },
@@ -105,18 +105,18 @@ export function Templates() {
               key={template.id}
               className="group relative rounded-lg overflow-hidden border border-border bg-card"
             >
-              <div className="aspect-[3/4] relative bg-secondary">
+              <div className="aspect-3/4 relative bg-secondary">
                 <Image
                   src={template.image || "/placeholder.svg"}
                   alt={template.name}
                   fill
-                  className="object-cover"
+                  className="object-contain"
                   placeholder="blur"
                   blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBEQCEAwEPwAB//9k="
                 />
-                {template.popular && (
+                {/*{template.popular && (
                   <Badge className="absolute top-3 left-3">Populer</Badge>
-                )}
+                )}*/}
                 <div className="absolute inset-0 bg-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <Button variant="secondary" size="sm" asChild>
                     <Link href={`/preview?theme=${template.themeKey}`} target="_blank">

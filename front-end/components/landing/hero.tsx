@@ -1,10 +1,10 @@
-import { ArrowRight, Sparkles, Star, Users, Shield } from "lucide-react";
+import { ArrowRight, Shield, Sparkles, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function Hero() {
   return (
-    <section className="relative pt-32 pb-20 px-6 h-dvh flex items-center overflow-hidden">
+    <section className="relative pt-32 pb-20 px-6 min-h-dvh flex items-center overflow-hidden">
       {/* Background decorations */}
       <div className="pointer-events-none absolute inset-0 -z-20 bg-[radial-gradient(ellipse_at_25%_20%,rgba(139,87,74,0.13),transparent_55%),radial-gradient(ellipse_at_78%_75%,rgba(181,140,97,0.11),transparent_50%),linear-gradient(180deg,#faf7f5_0%,#f6f1ed_100%)]" />
       <div className="pointer-events-none absolute inset-0 -z-10 opacity-25 [background-image:radial-gradient(rgba(138,98,84,0.18)_1px,transparent_1px)] [background-size:28px_28px]" />
@@ -44,7 +44,7 @@ export function Hero() {
 
         {/* Trust Indicators */}
         <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
+          {/*<div className="flex items-center gap-2">
             <Star className="w-4 h-4 fill-primary text-primary" />
             <span>4.9/5 Rating</span>
           </div>
@@ -52,12 +52,12 @@ export function Hero() {
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-primary" />
             <span><span className="font-semibold text-foreground">500+</span> Pasangan puas</span>
-          </div>
-          <div className="w-1 h-1 rounded-full bg-border hidden sm:block" />
-          <div className="flex items-center gap-2">
+          </div>*/}
+          {/*<div className="w-1 h-1 rounded-full bg-border hidden sm:block" />*/}
+          {/*<div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-primary" />
             <span>Pembayaran aman</span>
-          </div>
+          </div>*/}
         </div>
       </div>
     </section>

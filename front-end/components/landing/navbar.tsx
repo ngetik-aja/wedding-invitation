@@ -14,7 +14,7 @@ export function Navbar() {
       <nav className="max-w-6xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <Link href="/" className="font-serif text-2xl font-bold text-foreground flex items-center gap-2">
-            <Image width={80} height={80} src={"/logo_JanjiAkad_nobg.png"} alt="Logo Janji Akad" className="-my-3" /> JanjiAkad
+            <Image width={80} height={80} src={"/logo_JanjiAkad_nobg.png"} alt="Logo Janji Akad" className="-my-3 w-12 h-12 md:w-20 md:h-20" /> JanjiAkad
           </Link>
 
           {/* Desktop Menu */}

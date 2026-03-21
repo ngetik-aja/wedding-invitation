@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,8 +13,8 @@ export function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <nav className="max-w-6xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <Link href="/" className="font-serif text-2xl font-bold text-foreground">
-            JanjiAkad
+          <Link href="/" className="font-serif text-2xl font-bold text-foreground flex items-center gap-2">
+            <Image width={80} height={80} src={"/logo_JanjiAkad_nobg.png"} alt="Logo Janji Akad" className="-my-3" /> JanjiAkad
           </Link>
 
           {/* Desktop Menu */}
